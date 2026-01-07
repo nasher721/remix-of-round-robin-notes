@@ -12,6 +12,7 @@ interface RichTextEditorProps {
   className?: string;
   minHeight?: string;
   autotexts?: AutoText[];
+  fontSize?: number;
 }
 
 export const RichTextEditor = ({ 
@@ -20,10 +21,11 @@ export const RichTextEditor = ({
   placeholder = "Enter text...", 
   className,
   minHeight = "80px",
-  autotexts = defaultAutotexts
+  autotexts = defaultAutotexts,
+  fontSize = 14
 }: RichTextEditorProps) => {
   const editorRef = useRef<HTMLDivElement>(null);
-  const fontSizeRef = useRef(14);
+  const fontSizeRef = useRef(fontSize);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [autocompleteOptions, setAutocompleteOptions] = useState<{shortcut: string; expansion: string}[]>([]);
   const [autocompletePosition, setAutocompletePosition] = useState({ top: 0, left: 0 });
@@ -211,6 +213,14 @@ export const RichTextEditor = ({
       setShowAutocomplete(false);
     }
   }, [autotexts]);
+
+  // Sync fontSize prop with ref
+  useEffect(() => {
+    fontSizeRef.current = fontSize;
+    if (editorRef.current) {
+      editorRef.current.style.fontSize = `${fontSize}px`;
+    }
+  }, [fontSize]);
 
   // Sync external value changes - only when value actually changes externally
   useEffect(() => {

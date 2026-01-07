@@ -9,25 +9,26 @@ import { AutotextManager } from "@/components/AutotextManager";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import {
   Plus,
   Printer,
   Download,
-  Upload,
   Trash2,
   Search,
   Clock,
   Users,
   LogOut,
   Loader2,
-  Cloud
+  Cloud,
+  Type
 } from "lucide-react";
 
 // Convert database Patient to legacy format for PatientCard
 const toLegacyPatient = (p: Patient) => ({
-  id: p.patient_number, // Use patient_number as legacy numeric id
-  dbId: p.id, // Keep database id for operations
+  id: p.patient_number,
+  dbId: p.id,
   name: p.name,
   bed: p.bed,
   clinicalSummary: p.clinical_summary,
@@ -46,7 +47,7 @@ const Index = () => {
     addPatient, 
     updatePatient, 
     removePatient, 
-    duplicatePatient, 
+    duplicatePatient,
     toggleCollapse,
     clearAll 
   } = usePatients();
@@ -56,8 +57,17 @@ const Index = () => {
   const [filter, setFilter] = useState<'all' | 'filled' | 'empty'>('all');
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date>(new Date());
+  const [globalFontSize, setGlobalFontSize] = useState(() => {
+    const saved = localStorage.getItem('globalFontSize');
+    return saved ? parseInt(saved, 10) : 14;
+  });
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Save font size preference
+  useEffect(() => {
+    localStorage.setItem('globalFontSize', String(globalFontSize));
+  }, [globalFontSize]);
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -74,7 +84,6 @@ const Index = () => {
   }, [patients]);
 
   const handleUpdatePatient = useCallback((id: number, field: string, value: unknown) => {
-    // Find the database id from patient_number
     const patient = patients.find(p => p.patient_number === id);
     if (patient) {
       updatePatient(patient.id, field, value);
@@ -164,7 +173,6 @@ const Index = () => {
     return matchesSearch;
   });
 
-  // Convert to legacy format for components
   const legacyPatients = filteredPatients.map(toLegacyPatient);
 
   if (authLoading || patientsLoading) {
@@ -244,7 +252,7 @@ const Index = () => {
         </div>
       </header>
 
-      {/* Status Bar */}
+      {/* Status Bar with Font Size Control */}
       <div className="container mx-auto px-4 py-4 no-print">
         <Card className="p-4">
           <div className="flex justify-between items-center flex-wrap gap-4">
@@ -257,6 +265,39 @@ const Index = () => {
                 <Clock className="h-4 w-4" />
                 Last synced: {lastSaved.toLocaleTimeString()}
               </div>
+            </div>
+            
+            {/* Global Font Size Control */}
+            <div className="flex items-center gap-3 bg-muted/50 px-3 py-2 rounded-lg">
+              <Type className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Text Size:</span>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setGlobalFontSize(prev => Math.max(10, prev - 2))}
+                disabled={globalFontSize <= 10}
+              >
+                <span className="text-lg font-bold">−</span>
+              </Button>
+              <Slider
+                value={[globalFontSize]}
+                min={10}
+                max={24}
+                step={1}
+                className="w-24"
+                onValueChange={(v) => setGlobalFontSize(v[0])}
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setGlobalFontSize(prev => Math.min(24, prev + 2))}
+                disabled={globalFontSize >= 24}
+              >
+                <span className="text-lg font-bold">+</span>
+              </Button>
+              <span className="text-sm font-mono w-10 text-center">{globalFontSize}px</span>
             </div>
           </div>
         </Card>
@@ -331,6 +372,7 @@ const Index = () => {
                 onDuplicate={handleDuplicatePatient}
                 onToggleCollapse={handleToggleCollapse}
                 autotexts={autotexts}
+                globalFontSize={globalFontSize}
               />
             ))
           )}
