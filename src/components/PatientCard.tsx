@@ -1,16 +1,44 @@
-import { Patient } from "@/types/patient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { FileText, Calendar, Copy, Trash2, ChevronDown, ChevronUp, Clock } from "lucide-react";
 import { useState } from "react";
 import { RichTextEditor } from "./RichTextEditor";
+import { AutoText, defaultAutotexts } from "@/data/autotexts";
+
+interface PatientSystems {
+  neuro: string;
+  cv: string;
+  resp: string;
+  renalGU: string;
+  gi: string;
+  endo: string;
+  heme: string;
+  infectious: string;
+  skinLines: string;
+  dispo: string;
+}
+
+interface PatientData {
+  id: number;
+  dbId?: string;
+  name: string;
+  bed: string;
+  clinicalSummary: string;
+  intervalEvents: string;
+  systems: PatientSystems;
+  createdAt: string;
+  lastModified: string;
+  collapsed: boolean;
+}
+
 interface PatientCardProps {
-  patient: Patient;
-  onUpdate: (id: number, field: string, value: any) => void;
+  patient: PatientData;
+  onUpdate: (id: number, field: string, value: unknown) => void;
   onRemove: (id: number) => void;
   onDuplicate: (id: number) => void;
   onToggleCollapse: (id: number) => void;
+  autotexts?: AutoText[];
 }
 
 const systemLabels = {
@@ -26,7 +54,14 @@ const systemLabels = {
   dispo: "🏠 Disposition"
 };
 
-export const PatientCard = ({ patient, onUpdate, onRemove, onDuplicate, onToggleCollapse }: PatientCardProps) => {
+export const PatientCard = ({ 
+  patient, 
+  onUpdate, 
+  onRemove, 
+  onDuplicate, 
+  onToggleCollapse,
+  autotexts = defaultAutotexts
+}: PatientCardProps) => {
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
   const addTimestamp = (field: string) => {
@@ -37,7 +72,7 @@ export const PatientCard = ({ patient, onUpdate, onRemove, onDuplicate, onToggle
     });
     const currentValue = field.includes('.') 
       ? patient.systems[field.split('.')[1] as keyof typeof patient.systems]
-      : patient[field as keyof Patient];
+      : patient[field as keyof PatientData];
     const newValue = `[${timestamp}] ${currentValue || ''}`;
     onUpdate(patient.id, field, newValue);
   };
@@ -132,6 +167,7 @@ export const PatientCard = ({ patient, onUpdate, onRemove, onDuplicate, onToggle
                 onChange={(value) => onUpdate(patient.id, 'clinicalSummary', value)}
                 placeholder="Enter clinical summary..."
                 minHeight="80px"
+                autotexts={autotexts}
               />
             </div>
 
@@ -169,6 +205,7 @@ export const PatientCard = ({ patient, onUpdate, onRemove, onDuplicate, onToggle
                 onChange={(value) => onUpdate(patient.id, 'intervalEvents', value)}
                 placeholder="Enter interval events..."
                 minHeight="80px"
+                autotexts={autotexts}
               />
             </div>
 
@@ -191,6 +228,7 @@ export const PatientCard = ({ patient, onUpdate, onRemove, onDuplicate, onToggle
                       onChange={(value) => onUpdate(patient.id, `systems.${key}`, value)}
                       placeholder={`Enter ${label} notes...`}
                       minHeight="60px"
+                      autotexts={autotexts}
                     />
                   </div>
                 ))}

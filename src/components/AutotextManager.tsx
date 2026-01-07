@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -21,28 +21,34 @@ import {
   Trash2, 
   Search,
   Copy,
-  Settings,
   Sparkles
 } from "lucide-react";
 import { 
   AutoText, 
   Template, 
-  defaultAutotexts, 
-  defaultTemplates, 
   medicalDictionary 
 } from "@/data/autotexts";
 import { useToast } from "@/hooks/use-toast";
 
 interface AutotextManagerProps {
   onInsertText?: (text: string) => void;
+  autotexts?: AutoText[];
+  templates?: Template[];
+  onAddAutotext?: (shortcut: string, expansion: string, category: string) => Promise<boolean>;
+  onRemoveAutotext?: (shortcut: string) => Promise<void>;
+  onAddTemplate?: (name: string, content: string, category: string) => Promise<boolean>;
+  onRemoveTemplate?: (id: string) => Promise<void>;
 }
 
-const AUTOTEXTS_STORAGE_KEY = "medical-autotexts";
-const TEMPLATES_STORAGE_KEY = "medical-templates";
-
-export const AutotextManager = ({ onInsertText }: AutotextManagerProps) => {
-  const [autotexts, setAutotexts] = useState<AutoText[]>([]);
-  const [templates, setTemplates] = useState<Template[]>([]);
+export const AutotextManager = ({ 
+  onInsertText,
+  autotexts = [],
+  templates = [],
+  onAddAutotext,
+  onRemoveAutotext,
+  onAddTemplate,
+  onRemoveTemplate,
+}: AutotextManagerProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [newShortcut, setNewShortcut] = useState("");
   const [newExpansion, setNewExpansion] = useState("");
@@ -53,76 +59,40 @@ export const AutotextManager = ({ onInsertText }: AutotextManagerProps) => {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
 
-  // Load autotexts and templates from localStorage
-  useEffect(() => {
-    const savedAutotexts = localStorage.getItem(AUTOTEXTS_STORAGE_KEY);
-    const savedTemplates = localStorage.getItem(TEMPLATES_STORAGE_KEY);
-    
-    if (savedAutotexts) {
-      setAutotexts(JSON.parse(savedAutotexts));
-    } else {
-      setAutotexts(defaultAutotexts);
-    }
-    
-    if (savedTemplates) {
-      setTemplates(JSON.parse(savedTemplates));
-    } else {
-      setTemplates(defaultTemplates);
-    }
-  }, []);
-
-  // Save to localStorage when changed
-  useEffect(() => {
-    if (autotexts.length > 0) {
-      localStorage.setItem(AUTOTEXTS_STORAGE_KEY, JSON.stringify(autotexts));
-    }
-  }, [autotexts]);
-
-  useEffect(() => {
-    if (templates.length > 0) {
-      localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(templates));
-    }
-  }, [templates]);
-
-  const addAutotext = () => {
+  const handleAddAutotext = async () => {
     if (!newShortcut || !newExpansion) return;
-    const exists = autotexts.some(a => a.shortcut.toLowerCase() === newShortcut.toLowerCase());
-    if (exists) {
-      toast({
-        title: "Shortcut exists",
-        description: "This shortcut already exists. Please use a different one.",
-        variant: "destructive"
-      });
-      return;
+    
+    if (onAddAutotext) {
+      const success = await onAddAutotext(newShortcut, newExpansion, newCategory);
+      if (success) {
+        setNewShortcut("");
+        setNewExpansion("");
+      }
     }
-    setAutotexts(prev => [...prev, { shortcut: newShortcut.toLowerCase(), expansion: newExpansion, category: newCategory }]);
-    setNewShortcut("");
-    setNewExpansion("");
-    toast({ title: "Autotext added", description: `"${newShortcut}" → "${newExpansion}"` });
   };
 
-  const removeAutotext = (shortcut: string) => {
-    setAutotexts(prev => prev.filter(a => a.shortcut !== shortcut));
-    toast({ title: "Autotext removed" });
+  const handleRemoveAutotext = async (shortcut: string) => {
+    if (onRemoveAutotext) {
+      await onRemoveAutotext(shortcut);
+    }
   };
 
-  const addTemplate = () => {
+  const handleAddTemplate = async () => {
     if (!newTemplateName || !newTemplateContent) return;
-    const id = `custom-${Date.now()}`;
-    setTemplates(prev => [...prev, { 
-      id, 
-      name: newTemplateName, 
-      category: newTemplateCategory, 
-      content: newTemplateContent 
-    }]);
-    setNewTemplateName("");
-    setNewTemplateContent("");
-    toast({ title: "Template added", description: newTemplateName });
+    
+    if (onAddTemplate) {
+      const success = await onAddTemplate(newTemplateName, newTemplateContent, newTemplateCategory);
+      if (success) {
+        setNewTemplateName("");
+        setNewTemplateContent("");
+      }
+    }
   };
 
-  const removeTemplate = (id: string) => {
-    setTemplates(prev => prev.filter(t => t.id !== id));
-    toast({ title: "Template removed" });
+  const handleRemoveTemplate = async (id: string) => {
+    if (onRemoveTemplate) {
+      await onRemoveTemplate(id);
+    }
   };
 
   const insertTemplate = (content: string) => {
@@ -133,16 +103,6 @@ export const AutotextManager = ({ onInsertText }: AutotextManagerProps) => {
     } else {
       navigator.clipboard.writeText(content);
       toast({ title: "Template copied to clipboard" });
-    }
-  };
-
-  const resetToDefaults = () => {
-    if (confirm("Reset all autotexts and templates to defaults?")) {
-      setAutotexts(defaultAutotexts);
-      setTemplates(defaultTemplates);
-      localStorage.removeItem(AUTOTEXTS_STORAGE_KEY);
-      localStorage.removeItem(TEMPLATES_STORAGE_KEY);
-      toast({ title: "Reset to defaults" });
     }
   };
 
@@ -187,10 +147,6 @@ export const AutotextManager = ({ onInsertText }: AutotextManagerProps) => {
               className="pl-10"
             />
           </div>
-          <Button variant="outline" size="sm" onClick={resetToDefaults}>
-            <Settings className="h-4 w-4 mr-1" />
-            Reset
-          </Button>
         </div>
 
         <Tabs defaultValue="autotexts" className="flex-1 flex flex-col overflow-hidden">
@@ -240,7 +196,7 @@ export const AutotextManager = ({ onInsertText }: AutotextManagerProps) => {
                     className="h-8"
                   />
                 </div>
-                <Button onClick={addAutotext} size="sm" className="h-8">
+                <Button onClick={handleAddAutotext} size="sm" className="h-8">
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
@@ -270,7 +226,7 @@ export const AutotextManager = ({ onInsertText }: AutotextManagerProps) => {
                               variant="ghost"
                               size="sm"
                               className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
-                              onClick={() => removeAutotext(autotext.shortcut)}
+                              onClick={() => handleRemoveAutotext(autotext.shortcut)}
                             >
                               <Trash2 className="h-3 w-3" />
                             </Button>
@@ -309,7 +265,7 @@ export const AutotextManager = ({ onInsertText }: AutotextManagerProps) => {
                       className="h-8"
                     />
                   </div>
-                  <Button onClick={addTemplate} size="sm" className="h-8">
+                  <Button onClick={handleAddTemplate} size="sm" className="h-8">
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
@@ -343,14 +299,14 @@ export const AutotextManager = ({ onInsertText }: AutotextManagerProps) => {
                               <span className="font-medium text-sm">{template.name}</span>
                               <div className="flex gap-1">
                                 <Copy className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100" />
-                                {template.id.startsWith('custom-') && (
+                                {template.id.startsWith('custom-') || !template.id.includes('-') ? null : (
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      removeTemplate(template.id);
+                                      handleRemoveTemplate(template.id);
                                     }}
                                   >
                                     <Trash2 className="h-3 w-3" />
@@ -403,34 +359,4 @@ export const AutotextManager = ({ onInsertText }: AutotextManagerProps) => {
       </DialogContent>
     </Dialog>
   );
-};
-
-// Hook to get autotexts for use in RichTextEditor
-export const useAutotexts = () => {
-  const [autotexts, setAutotexts] = useState<AutoText[]>([]);
-
-  useEffect(() => {
-    const saved = localStorage.getItem(AUTOTEXTS_STORAGE_KEY);
-    if (saved) {
-      setAutotexts(JSON.parse(saved));
-    } else {
-      setAutotexts(defaultAutotexts);
-    }
-  }, []);
-
-  const getExpansion = (shortcut: string): string | null => {
-    const autotext = autotexts.find(a => a.shortcut.toLowerCase() === shortcut.toLowerCase());
-    return autotext?.expansion || null;
-  };
-
-  return { autotexts, getExpansion };
-};
-
-// Hook to get dictionary for autocorrect
-export const useDictionary = () => {
-  const correct = (word: string): string => {
-    return medicalDictionary[word.toLowerCase()] || word;
-  };
-
-  return { dictionary: medicalDictionary, correct };
 };
