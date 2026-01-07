@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Bold, Italic, Underline, List, ListOrdered, Type, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { defaultAutotexts, medicalDictionary } from "@/data/autotexts";
+import { defaultAutotexts, medicalDictionary, AutoText } from "@/data/autotexts";
 
 interface RichTextEditorProps {
   value: string;
@@ -11,6 +11,7 @@ interface RichTextEditorProps {
   placeholder?: string;
   className?: string;
   minHeight?: string;
+  autotexts?: AutoText[];
 }
 
 export const RichTextEditor = ({ 
@@ -18,7 +19,8 @@ export const RichTextEditor = ({
   onChange, 
   placeholder = "Enter text...", 
   className,
-  minHeight = "80px"
+  minHeight = "80px",
+  autotexts = defaultAutotexts
 }: RichTextEditorProps) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const fontSizeRef = useRef(14);
@@ -27,17 +29,20 @@ export const RichTextEditor = ({
   const [autocompletePosition, setAutocompletePosition] = useState({ top: 0, left: 0 });
   const [selectedIndex, setSelectedIndex] = useState(0);
   const lastWordRef = useRef("");
+  const isInternalUpdate = useRef(false);
 
   const execCommand = useCallback((command: string, value?: string) => {
     document.execCommand(command, false, value);
     editorRef.current?.focus();
     if (editorRef.current) {
+      isInternalUpdate.current = true;
       onChange(editorRef.current.innerHTML);
     }
   }, [onChange]);
 
   const handleInput = useCallback(() => {
     if (editorRef.current) {
+      isInternalUpdate.current = true;
       onChange(editorRef.current.innerHTML);
     }
   }, [onChange]);
@@ -58,6 +63,7 @@ export const RichTextEditor = ({
       range.surroundContents(span);
       editorRef.current?.focus();
       if (editorRef.current) {
+        isInternalUpdate.current = true;
         onChange(editorRef.current.innerHTML);
       }
     }
@@ -78,10 +84,8 @@ export const RichTextEditor = ({
     
     // Find word boundaries
     let start = offset;
-    let end = offset;
     
     while (start > 0 && /\S/.test(text[start - 1])) start--;
-    while (end < text.length && /\S/.test(text[end])) end++;
     
     const word = text.substring(start, offset);
     
@@ -98,15 +102,21 @@ export const RichTextEditor = ({
     if (!range) return;
     
     range.deleteContents();
-    range.insertNode(document.createTextNode(replacement + " "));
+    const textNode = document.createTextNode(replacement + " ");
+    range.insertNode(textNode);
     
     // Move cursor after inserted text
     const selection = window.getSelection();
     if (selection) {
-      selection.collapseToEnd();
+      const newRange = document.createRange();
+      newRange.setStartAfter(textNode);
+      newRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(newRange);
     }
     
     if (editorRef.current) {
+      isInternalUpdate.current = true;
       onChange(editorRef.current.innerHTML);
     }
     
@@ -141,7 +151,7 @@ export const RichTextEditor = ({
     if (e.key === " " || e.key === "Tab") {
       const { word } = getCurrentWord();
       if (word) {
-        const autotext = defaultAutotexts.find(a => a.shortcut.toLowerCase() === word.toLowerCase());
+        const autotext = autotexts.find(a => a.shortcut.toLowerCase() === word.toLowerCase());
         if (autotext) {
           e.preventDefault();
           replaceCurrentWord(autotext.expansion);
@@ -159,7 +169,7 @@ export const RichTextEditor = ({
         }
       }
     }
-  }, [showAutocomplete, autocompleteOptions, selectedIndex]);
+  }, [showAutocomplete, autocompleteOptions, selectedIndex, autotexts]);
 
   const handleKeyUp = useCallback((e: React.KeyboardEvent) => {
     // Don't show autocomplete for navigation/modifier keys
@@ -171,7 +181,7 @@ export const RichTextEditor = ({
     lastWordRef.current = word;
 
     if (word.length >= 2) {
-      const matches = defaultAutotexts.filter(a => 
+      const matches = autotexts.filter(a => 
         a.shortcut.toLowerCase().startsWith(word.toLowerCase())
       ).slice(0, 5);
 
@@ -200,12 +210,30 @@ export const RichTextEditor = ({
     } else {
       setShowAutocomplete(false);
     }
-  }, []);
+  }, [autotexts]);
 
-  // Sync external value changes
+  // Sync external value changes - only when value actually changes externally
   useEffect(() => {
+    if (isInternalUpdate.current) {
+      isInternalUpdate.current = false;
+      return;
+    }
+    
     if (editorRef.current && editorRef.current.innerHTML !== value) {
+      // Save cursor position
+      const selection = window.getSelection();
+      const hadFocus = document.activeElement === editorRef.current;
+      
       editorRef.current.innerHTML = value;
+      
+      // Restore cursor to end if we had focus
+      if (hadFocus && selection && editorRef.current.childNodes.length > 0) {
+        const range = document.createRange();
+        range.selectNodeContents(editorRef.current);
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
     }
   }, [value]);
 
@@ -299,7 +327,6 @@ export const RichTextEditor = ({
         contentEditable
         className="p-3 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all prose prose-sm max-w-none"
         style={{ minHeight, fontSize: `${fontSizeRef.current}px` }}
-        dangerouslySetInnerHTML={{ __html: value }}
         onInput={handleInput}
         onKeyDown={handleKeyDown}
         onKeyUp={handleKeyUp}
@@ -313,6 +340,7 @@ export const RichTextEditor = ({
           delete e.currentTarget.dataset.empty;
           setShowAutocomplete(false);
         }}
+        suppressContentEditableWarning
       />
 
       {/* Autocomplete dropdown */}

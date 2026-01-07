@@ -14,7 +14,102 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      autotexts: {
+        Row: {
+          category: string
+          created_at: string
+          expansion: string
+          id: string
+          shortcut: string
+          user_id: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          expansion: string
+          id?: string
+          shortcut: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          expansion?: string
+          id?: string
+          shortcut?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      patients: {
+        Row: {
+          bed: string
+          clinical_summary: string
+          collapsed: boolean
+          created_at: string
+          id: string
+          interval_events: string
+          last_modified: string
+          name: string
+          patient_number: number
+          systems: Json
+          user_id: string
+        }
+        Insert: {
+          bed?: string
+          clinical_summary?: string
+          collapsed?: boolean
+          created_at?: string
+          id?: string
+          interval_events?: string
+          last_modified?: string
+          name?: string
+          patient_number: number
+          systems?: Json
+          user_id: string
+        }
+        Update: {
+          bed?: string
+          clinical_summary?: string
+          collapsed?: boolean
+          created_at?: string
+          id?: string
+          interval_events?: string
+          last_modified?: string
+          name?: string
+          patient_number?: number
+          systems?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
+      templates: {
+        Row: {
+          category: string
+          content: string
+          created_at: string
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          category?: string
+          content: string
+          created_at?: string
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          content?: string
+          created_at?: string
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

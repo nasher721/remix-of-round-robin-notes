@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
-import { Patient, SettingsType } from "@/types/patient";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { usePatients, Patient } from "@/hooks/usePatients";
+import { useCloudAutotexts } from "@/hooks/useAutotexts";
 import { PatientCard } from "@/components/PatientCard";
 import { PrintExportModal } from "@/components/PrintExportModal";
 import { AutotextManager } from "@/components/AutotextManager";
@@ -15,150 +18,107 @@ import {
   Trash2,
   Search,
   Clock,
-  Users
+  Users,
+  LogOut,
+  Loader2,
+  Cloud
 } from "lucide-react";
 
-const defaultPatient: Omit<Patient, 'id'> = {
-  name: '',
-  bed: '',
-  clinicalSummary: '',
-  intervalEvents: '',
-  systems: {
-    neuro: '',
-    cv: '',
-    resp: '',
-    renalGU: '',
-    gi: '',
-    endo: '',
-    heme: '',
-    infectious: '',
-    skinLines: '',
-    dispo: ''
-  },
-  createdAt: new Date().toISOString(),
-  lastModified: new Date().toISOString(),
-  collapsed: false
-};
+// Convert database Patient to legacy format for PatientCard
+const toLegacyPatient = (p: Patient) => ({
+  id: p.patient_number, // Use patient_number as legacy numeric id
+  dbId: p.id, // Keep database id for operations
+  name: p.name,
+  bed: p.bed,
+  clinicalSummary: p.clinical_summary,
+  intervalEvents: p.interval_events,
+  systems: p.systems,
+  createdAt: p.created_at,
+  lastModified: p.last_modified,
+  collapsed: p.collapsed,
+});
 
 const Index = () => {
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [patientIdCounter, setPatientIdCounter] = useState(1);
+  const { user, loading: authLoading, signOut } = useAuth();
+  const { 
+    patients, 
+    loading: patientsLoading, 
+    addPatient, 
+    updatePatient, 
+    removePatient, 
+    duplicatePatient, 
+    toggleCollapse,
+    clearAll 
+  } = usePatients();
+  const { autotexts, templates, addAutotext, removeAutotext, addTemplate, removeTemplate } = useCloudAutotexts();
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'filled' | 'empty'>('all');
-  const [showSettings, setShowSettings] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date>(new Date());
   const { toast } = useToast();
+  const navigate = useNavigate();
 
-  // Load from localStorage on mount
+  // Redirect to auth if not logged in
   useEffect(() => {
-    const saved = localStorage.getItem('medicalRoundingData');
-    if (saved) {
-      try {
-        const data = JSON.parse(saved);
-        setPatients(data.patients || []);
-        setPatientIdCounter(data.patientIdCounter || 1);
-        toast({
-          title: "Data Loaded",
-          description: "Your previous session has been restored.",
-        });
-      } catch (error) {
-        console.error('Error loading data:', error);
-      }
+    if (!authLoading && !user) {
+      navigate("/auth");
     }
-  }, []);
+  }, [user, authLoading, navigate]);
 
-  // Auto-save to localStorage
+  // Update last saved time when patients change
   useEffect(() => {
     if (patients.length > 0) {
-      const saveData = {
-        patients,
-        patientIdCounter,
-        lastSaved: new Date().toISOString()
-      };
-      localStorage.setItem('medicalRoundingData', JSON.stringify(saveData));
       setLastSaved(new Date());
     }
-  }, [patients, patientIdCounter]);
+  }, [patients]);
 
-  const addPatient = useCallback(() => {
-    const newPatient: Patient = {
-      ...defaultPatient,
-      id: patientIdCounter,
-      createdAt: new Date().toISOString(),
-      lastModified: new Date().toISOString()
-    };
-    setPatients(prev => [...prev, newPatient]);
-    setPatientIdCounter(prev => prev + 1);
-    toast({
-      title: "Patient Added",
-      description: "New patient card created successfully.",
-    });
-  }, [patientIdCounter, toast]);
-
-  const updatePatient = useCallback((id: number, field: string, value: any) => {
-    setPatients(prev => prev.map(p => {
-      if (p.id === id) {
-        const updated: Patient = { ...p, lastModified: new Date().toISOString() };
-        if (field.includes('.')) {
-          const [parent, child] = field.split('.');
-          if (parent === 'systems') {
-            updated.systems = {
-              ...p.systems,
-              [child]: value
-            };
-          }
-        } else {
-          (updated as any)[field] = value;
-        }
-        return updated;
-      }
-      return p;
-    }));
-  }, []);
-
-  const removePatient = useCallback((id: number) => {
-    if (confirm('Remove this patient from rounds?')) {
-      setPatients(prev => prev.filter(p => p.id !== id));
-      toast({
-        title: "Patient Removed",
-        description: "Patient has been removed from rounds.",
-        variant: "destructive"
-      });
-    }
-  }, [toast]);
-
-  const duplicatePatient = useCallback((id: number) => {
-    const patient = patients.find(p => p.id === id);
+  const handleUpdatePatient = useCallback((id: number, field: string, value: unknown) => {
+    // Find the database id from patient_number
+    const patient = patients.find(p => p.patient_number === id);
     if (patient) {
-      const newPatient: Patient = {
-        ...JSON.parse(JSON.stringify(patient)),
-        id: patientIdCounter,
-        name: patient.name + ' (Copy)',
-        createdAt: new Date().toISOString(),
-        lastModified: new Date().toISOString()
-      };
-      setPatients(prev => [...prev, newPatient]);
-      setPatientIdCounter(prev => prev + 1);
-      toast({
-        title: "Patient Duplicated",
-        description: "Patient card has been duplicated.",
-      });
+      updatePatient(patient.id, field, value);
     }
-  }, [patients, patientIdCounter, toast]);
+  }, [patients, updatePatient]);
 
-  const toggleCollapse = useCallback((id: number) => {
-    setPatients(prev => prev.map(p => 
-      p.id === id ? { ...p, collapsed: !p.collapsed } : p
-    ));
-  }, []);
+  const handleRemovePatient = useCallback((id: number) => {
+    if (confirm('Remove this patient from rounds?')) {
+      const patient = patients.find(p => p.patient_number === id);
+      if (patient) {
+        removePatient(patient.id);
+      }
+    }
+  }, [patients, removePatient]);
+
+  const handleDuplicatePatient = useCallback((id: number) => {
+    const patient = patients.find(p => p.patient_number === id);
+    if (patient) {
+      duplicatePatient(patient.id);
+    }
+  }, [patients, duplicatePatient]);
+
+  const handleToggleCollapse = useCallback((id: number) => {
+    const patient = patients.find(p => p.patient_number === id);
+    if (patient) {
+      toggleCollapse(patient.id);
+    }
+  }, [patients, toggleCollapse]);
 
   const handlePrint = useCallback(() => {
     setShowPrintModal(true);
   }, []);
 
   const handleExport = useCallback(() => {
-    const dataStr = JSON.stringify({ patients, patientIdCounter }, null, 2);
+    const exportData = patients.map(p => ({
+      name: p.name,
+      bed: p.bed,
+      clinicalSummary: p.clinical_summary,
+      intervalEvents: p.interval_events,
+      systems: p.systems,
+      createdAt: p.created_at,
+      lastModified: p.last_modified,
+    }));
+    const dataStr = JSON.stringify({ patients: exportData }, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
@@ -170,74 +130,57 @@ const Index = () => {
       title: "Export Successful",
       description: "Data exported as JSON file.",
     });
-  }, [patients, patientIdCounter, toast]);
+  }, [patients, toast]);
 
-  const handleImport = useCallback(() => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          try {
-            const data = JSON.parse(event.target?.result as string);
-            setPatients(data.patients || []);
-            setPatientIdCounter(data.patientIdCounter || 1);
-            toast({
-              title: "Import Successful",
-              description: "Data has been imported.",
-            });
-          } catch (error) {
-            toast({
-              title: "Import Failed",
-              description: "Invalid file format.",
-              variant: "destructive"
-            });
-          }
-        };
-        reader.readAsText(file);
-      }
-    };
-    input.click();
-  }, [toast]);
-
-  const clearAll = useCallback(() => {
+  const handleClearAll = useCallback(() => {
     if (confirm('Clear all patients? This cannot be undone.')) {
-      setPatients([]);
-      setPatientIdCounter(1);
-      localStorage.removeItem('medicalRoundingData');
-      toast({
-        title: "All Data Cleared",
-        description: "All patient data has been removed.",
-        variant: "destructive"
-      });
+      clearAll();
     }
-  }, [toast]);
+  }, [clearAll]);
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/auth");
+  };
 
   const filteredPatients = patients.filter(patient => {
-    // Search filter
     const searchLower = searchQuery.toLowerCase();
     const matchesSearch = !searchQuery || 
       patient.name.toLowerCase().includes(searchLower) ||
       patient.bed.toLowerCase().includes(searchLower) ||
-      patient.clinicalSummary.toLowerCase().includes(searchLower) ||
-      patient.intervalEvents.toLowerCase().includes(searchLower);
+      patient.clinical_summary.toLowerCase().includes(searchLower) ||
+      patient.interval_events.toLowerCase().includes(searchLower);
 
-    // Status filter
     if (filter === 'filled') {
-      const hasSomeContent = patient.clinicalSummary || patient.intervalEvents ||
+      const hasSomeContent = patient.clinical_summary || patient.interval_events ||
         Object.values(patient.systems).some(v => v);
       return matchesSearch && hasSomeContent;
     } else if (filter === 'empty') {
-      const isEmpty = !patient.clinicalSummary && !patient.intervalEvents &&
+      const isEmpty = !patient.clinical_summary && !patient.interval_events &&
         !Object.values(patient.systems).some(v => v);
       return matchesSearch && isEmpty;
     }
     
     return matchesSearch;
   });
+
+  // Convert to legacy format for components
+  const legacyPatients = filteredPatients.map(toLegacyPatient);
+
+  if (authLoading || patientsLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -248,8 +191,11 @@ const Index = () => {
             <div>
               <h1 className="text-3xl font-bold flex items-center gap-3">
                 🏥 Patient Rounding Assistant
-                <span className="text-xs bg-white/20 px-3 py-1 rounded-full">Pro v2.0</span>
+                <span className="text-xs bg-white/20 px-3 py-1 rounded-full flex items-center gap-1">
+                  <Cloud className="h-3 w-3" /> Cloud Sync
+                </span>
               </h1>
+              <p className="text-sm text-white/80 mt-1">{user.email}</p>
             </div>
             <div className="flex gap-4 text-sm items-center flex-wrap">
               <div className="flex items-center gap-2">
@@ -262,6 +208,10 @@ const Index = () => {
                 <Users className="h-4 w-4" />
                 {patients.length} patient{patients.length !== 1 ? 's' : ''}
               </div>
+              <Button onClick={handleSignOut} variant="secondary" size="sm" className="bg-white/10 hover:bg-white/20">
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
             </div>
           </div>
           
@@ -270,7 +220,14 @@ const Index = () => {
               <Plus className="h-4 w-4 mr-2" />
               Add Patient
             </Button>
-            <AutotextManager />
+            <AutotextManager 
+              autotexts={autotexts}
+              templates={templates}
+              onAddAutotext={addAutotext}
+              onRemoveAutotext={removeAutotext}
+              onAddTemplate={addTemplate}
+              onRemoveTemplate={removeTemplate}
+            />
             <Button onClick={handlePrint} variant="secondary" className="bg-success text-success-foreground hover:bg-success/90">
               <Printer className="h-4 w-4 mr-2" />
               Print/Export
@@ -279,11 +236,7 @@ const Index = () => {
               <Download className="h-4 w-4 mr-2" />
               JSON
             </Button>
-            <Button onClick={handleImport} variant="secondary" className="bg-white/10 hover:bg-white/20">
-              <Upload className="h-4 w-4 mr-2" />
-              Import
-            </Button>
-            <Button onClick={clearAll} variant="destructive">
+            <Button onClick={handleClearAll} variant="destructive">
               <Trash2 className="h-4 w-4 mr-2" />
               Clear All
             </Button>
@@ -298,11 +251,11 @@ const Index = () => {
             <div className="flex gap-4 items-center">
               <div className="flex items-center gap-2 text-sm">
                 <div className="w-2 h-2 bg-success rounded-full animate-pulse" />
-                <span>Auto-save enabled</span>
+                <span>Cloud sync enabled</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Clock className="h-4 w-4" />
-                Last saved: {lastSaved.toLocaleTimeString()}
+                Last synced: {lastSaved.toLocaleTimeString()}
               </div>
             </div>
           </div>
@@ -352,7 +305,7 @@ const Index = () => {
       {/* Patient Cards */}
       <div className="container mx-auto px-4 pb-8">
         <div className="space-y-4">
-          {filteredPatients.length === 0 ? (
+          {legacyPatients.length === 0 ? (
             <Card className="p-12 text-center">
               <div className="text-6xl mb-4">🏥</div>
               <h3 className="text-2xl font-bold mb-2">
@@ -369,14 +322,15 @@ const Index = () => {
               )}
             </Card>
           ) : (
-            filteredPatients.map(patient => (
+            legacyPatients.map(patient => (
               <PatientCard
-                key={patient.id}
+                key={patient.dbId}
                 patient={patient}
-                onUpdate={updatePatient}
-                onRemove={removePatient}
-                onDuplicate={duplicatePatient}
-                onToggleCollapse={toggleCollapse}
+                onUpdate={handleUpdatePatient}
+                onRemove={handleRemovePatient}
+                onDuplicate={handleDuplicatePatient}
+                onToggleCollapse={handleToggleCollapse}
+                autotexts={autotexts}
               />
             ))
           )}
@@ -386,8 +340,8 @@ const Index = () => {
       <PrintExportModal
         open={showPrintModal}
         onOpenChange={setShowPrintModal}
-        patients={filteredPatients}
-        onUpdatePatient={updatePatient}
+        patients={legacyPatients}
+        onUpdatePatient={handleUpdatePatient}
       />
     </div>
   );
