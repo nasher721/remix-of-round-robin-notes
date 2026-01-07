@@ -39,6 +39,7 @@ interface PatientCardProps {
   onDuplicate: (id: number) => void;
   onToggleCollapse: (id: number) => void;
   autotexts?: AutoText[];
+  globalFontSize?: number;
 }
 
 const systemLabels = {
@@ -60,7 +61,8 @@ export const PatientCard = ({
   onRemove, 
   onDuplicate, 
   onToggleCollapse,
-  autotexts = defaultAutotexts
+  autotexts = defaultAutotexts,
+  globalFontSize = 14
 }: PatientCardProps) => {
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
@@ -168,6 +170,7 @@ export const PatientCard = ({
                 placeholder="Enter clinical summary..."
                 minHeight="80px"
                 autotexts={autotexts}
+                fontSize={globalFontSize}
               />
             </div>
 
@@ -206,6 +209,7 @@ export const PatientCard = ({
                 placeholder="Enter interval events..."
                 minHeight="80px"
                 autotexts={autotexts}
+                fontSize={globalFontSize}
               />
             </div>
 
@@ -229,6 +233,7 @@ export const PatientCard = ({
                       placeholder={`Enter ${label} notes...`}
                       minHeight="60px"
                       autotexts={autotexts}
+                      fontSize={globalFontSize}
                     />
                   </div>
                 ))}
