@@ -8,10 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { FileUp, Loader2, FileText, Users, AlertCircle } from "lucide-react";
-import * as pdfjsLib from "pdfjs-dist";
-
-// Set up the PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js`;
 
 interface ParsedPatient {
   bed: string;
@@ -34,8 +30,22 @@ interface EpicHandoffImportProps {
   }>) => Promise<void>;
 }
 
-// Extract text from PDF using PDF.js
+// Load PDF.js from CDN and extract text
 const extractPdfText = async (file: File): Promise<string> => {
+  // Dynamically load PDF.js from CDN if not already loaded
+  if (!(window as any).pdfjsLib) {
+    await new Promise<void>((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Failed to load PDF.js'));
+      document.head.appendChild(script);
+    });
+    (window as any).pdfjsLib.GlobalWorkerOptions.workerSrc = 
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+
+  const pdfjsLib = (window as any).pdfjsLib;
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   
