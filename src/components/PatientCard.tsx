@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
 import { FileText, Calendar, Copy, Trash2, ChevronDown, ChevronUp, Clock } from "lucide-react";
 import { useState } from "react";
 import { RichTextEditor } from "./RichTextEditor";
@@ -43,16 +42,29 @@ interface PatientCardProps {
 }
 
 const systemLabels = {
-  neuro: "🧠 Neuro",
-  cv: "❤️ CV",
-  resp: "🫁 Resp",
-  renalGU: "💧 Renal/GU",
-  gi: "🍽️ GI",
-  endo: "⚡ Endo",
-  heme: "🩸 Heme",
-  infectious: "🦠 Infectious",
-  skinLines: "🩹 Skin/Lines",
-  dispo: "🏠 Disposition"
+  neuro: "Neuro",
+  cv: "Cardiovascular",
+  resp: "Respiratory",
+  renalGU: "Renal/GU",
+  gi: "GI/Nutrition",
+  endo: "Endocrine",
+  heme: "Hematology",
+  infectious: "Infectious",
+  skinLines: "Skin/Lines",
+  dispo: "Disposition"
+};
+
+const systemIcons = {
+  neuro: "🧠",
+  cv: "❤️",
+  resp: "🫁",
+  renalGU: "💧",
+  gi: "🍽️",
+  endo: "⚡",
+  heme: "🩸",
+  infectious: "🦠",
+  skinLines: "🩹",
+  dispo: "🏠"
 };
 
 export const PatientCard = ({ 
@@ -85,85 +97,102 @@ export const PatientCard = ({
     }
   };
 
+  const hasSystemContent = (key: string) => {
+    return Boolean(patient.systems[key as keyof typeof patient.systems]);
+  };
+
   return (
-    <Card className="print-avoid-break border-l-4 border-l-primary bg-card hover:shadow-lg transition-all duration-300">
-      <div className="p-6">
-        {/* Header */}
-        <div className="flex justify-between items-start gap-4 pb-4 border-b-2 border-border mb-6">
-          <div className="flex gap-3 flex-1 flex-wrap">
-            <Input
-              placeholder="Patient Name"
-              value={patient.name}
-              onChange={(e) => onUpdate(patient.id, 'name', e.target.value)}
-              className="max-w-[250px] font-semibold text-base border-2 focus:border-primary"
-            />
-            <Input
-              placeholder="Bed/Room"
-              value={patient.bed}
-              onChange={(e) => onUpdate(patient.id, 'bed', e.target.value)}
-              className="max-w-[150px] border-2 focus:border-primary"
-            />
-          </div>
-          <div className="flex gap-2 no-print">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => onToggleCollapse(patient.id)}
-              title={patient.collapsed ? "Expand" : "Collapse"}
-            >
-              {patient.collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => onDuplicate(patient.id)}
-              title="Duplicate"
-              className="hover:bg-accent hover:text-accent-foreground"
-            >
-              <Copy className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="destructive"
-              size="icon"
-              onClick={() => onRemove(patient.id)}
-              title="Remove"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+    <div className="print-avoid-break bg-card rounded-xl border border-border shadow-sm hover:shadow-md transition-all duration-300">
+      {/* Header */}
+      <div className="flex justify-between items-center gap-4 p-5 border-b border-border">
+        <div className="flex items-center gap-4 flex-1 flex-wrap">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <span className="text-lg">👤</span>
+            </div>
+            <div className="flex gap-3 flex-1 flex-wrap">
+              <Input
+                placeholder="Patient Name"
+                value={patient.name}
+                onChange={(e) => onUpdate(patient.id, 'name', e.target.value)}
+                className="max-w-[220px] font-medium bg-transparent border-0 border-b-2 border-transparent hover:border-border focus:border-primary rounded-none px-0 h-auto py-1 text-base"
+              />
+              <Input
+                placeholder="Bed/Room"
+                value={patient.bed}
+                onChange={(e) => onUpdate(patient.id, 'bed', e.target.value)}
+                className="max-w-[120px] bg-transparent border-0 border-b-2 border-transparent hover:border-border focus:border-primary rounded-none px-0 h-auto py-1 text-muted-foreground"
+              />
+            </div>
           </div>
         </div>
+        
+        <div className="flex items-center gap-1 no-print">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onToggleCollapse(patient.id)}
+            className="h-9 w-9 text-muted-foreground hover:text-foreground"
+            title={patient.collapsed ? "Expand" : "Collapse"}
+          >
+            {patient.collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onDuplicate(patient.id)}
+            className="h-9 w-9 text-muted-foreground hover:text-foreground"
+            title="Duplicate"
+          >
+            <Copy className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onRemove(patient.id)}
+            className="h-9 w-9 text-muted-foreground hover:text-destructive"
+            title="Remove"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
 
-        {!patient.collapsed && (
-          <div className="space-y-4">
-            {/* Clinical Summary */}
-            <div className="border border-border rounded-lg p-4 bg-muted/30">
-              <div className="flex justify-between items-center mb-2">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-primary" />
-                  <h3 className="font-semibold text-sm uppercase tracking-wide">Clinical Summary</h3>
-                  <span className="text-xs text-muted-foreground">
-                    ({patient.clinicalSummary.length} chars)
+      {!patient.collapsed && (
+        <div className="p-5 space-y-5">
+          {/* Clinical Summary */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-medium">Clinical Summary</h3>
+                {patient.clinicalSummary && (
+                  <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+                    {patient.clinicalSummary.length} chars
                   </span>
-                </div>
-                <div className="flex gap-1 no-print">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => addTimestamp('clinicalSummary')}
-                    title="Add timestamp"
-                  >
-                    <Clock className="h-3 w-3" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => clearSection('clinicalSummary')}
-                    className="hover:bg-warning hover:text-warning-foreground"
-                  >
-                    Clear
-                  </Button>
-                </div>
+                )}
               </div>
+              <div className="flex gap-1 no-print">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => addTimestamp('clinicalSummary')}
+                  className="h-7 px-2 text-muted-foreground hover:text-foreground"
+                  title="Add timestamp"
+                >
+                  <Clock className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => clearSection('clinicalSummary')}
+                  className="h-7 px-2 text-muted-foreground hover:text-destructive"
+                >
+                  Clear
+                </Button>
+              </div>
+            </div>
+            <div className="bg-secondary/30 rounded-lg p-3 border border-border/50">
               <RichTextEditor
                 value={patient.clinicalSummary}
                 onChange={(value) => onUpdate(patient.id, 'clinicalSummary', value)}
@@ -173,36 +202,41 @@ export const PatientCard = ({
                 fontSize={globalFontSize}
               />
             </div>
+          </div>
 
-            {/* Interval Events */}
-            <div className="border border-border rounded-lg p-4 bg-muted/30">
-              <div className="flex justify-between items-center mb-2">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-primary" />
-                  <h3 className="font-semibold text-sm uppercase tracking-wide">Interval Events</h3>
-                  <span className="text-xs text-muted-foreground">
-                    ({patient.intervalEvents.length} chars)
+          {/* Interval Events */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-medium">Interval Events</h3>
+                {patient.intervalEvents && (
+                  <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+                    {patient.intervalEvents.length} chars
                   </span>
-                </div>
-                <div className="flex gap-1 no-print">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => addTimestamp('intervalEvents')}
-                    title="Add timestamp"
-                  >
-                    <Clock className="h-3 w-3" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => clearSection('intervalEvents')}
-                    className="hover:bg-warning hover:text-warning-foreground"
-                  >
-                    Clear
-                  </Button>
-                </div>
+                )}
               </div>
+              <div className="flex gap-1 no-print">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => addTimestamp('intervalEvents')}
+                  className="h-7 px-2 text-muted-foreground hover:text-foreground"
+                  title="Add timestamp"
+                >
+                  <Clock className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => clearSection('intervalEvents')}
+                  className="h-7 px-2 text-muted-foreground hover:text-destructive"
+                >
+                  Clear
+                </Button>
+              </div>
+            </div>
+            <div className="bg-secondary/30 rounded-lg p-3 border border-border/50">
               <RichTextEditor
                 value={patient.intervalEvents}
                 onChange={(value) => onUpdate(patient.id, 'intervalEvents', value)}
@@ -212,36 +246,47 @@ export const PatientCard = ({
                 fontSize={globalFontSize}
               />
             </div>
+          </div>
 
-            {/* Systems Review */}
-            <div className="border border-border rounded-lg p-4 bg-muted/30">
-              <h3 className="font-semibold text-sm uppercase tracking-wide mb-3 flex items-center gap-2">
-                <span className="text-primary">⚕️</span> Systems Review
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {Object.entries(systemLabels).map(([key, label]) => (
-                  <div key={key} className="border border-border rounded-md p-2 bg-card hover:shadow-sm transition-shadow">
-                    <div className="flex justify-between items-center mb-1">
-                      <label className="text-xs font-medium flex items-center gap-1">
-                        {label}
-                      </label>
-                      <div className={`w-2 h-2 rounded-full ${patient.systems[key as keyof typeof patient.systems] ? 'bg-success' : 'bg-muted'}`} />
-                    </div>
-                    <RichTextEditor
-                      value={patient.systems[key as keyof typeof patient.systems]}
-                      onChange={(value) => onUpdate(patient.id, `systems.${key}`, value)}
-                      placeholder={`Enter ${label} notes...`}
-                      minHeight="60px"
-                      autotexts={autotexts}
-                      fontSize={globalFontSize}
-                    />
+          {/* Systems Review */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="text-primary text-sm">⚕️</span>
+              <h3 className="text-sm font-medium">Systems Review</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {Object.entries(systemLabels).map(([key, label]) => (
+                <div 
+                  key={key} 
+                  className={`rounded-lg p-3 border transition-all duration-200 ${
+                    hasSystemContent(key) 
+                      ? 'bg-card border-primary/20 shadow-sm' 
+                      : 'bg-secondary/30 border-border/50 hover:border-border'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground">
+                      <span>{systemIcons[key as keyof typeof systemIcons]}</span>
+                      {label}
+                    </label>
+                    {hasSystemContent(key) && (
+                      <div className="w-1.5 h-1.5 rounded-full bg-success" />
+                    )}
                   </div>
-                ))}
-              </div>
+                  <RichTextEditor
+                    value={patient.systems[key as keyof typeof patient.systems]}
+                    onChange={(value) => onUpdate(patient.id, `systems.${key}`, value)}
+                    placeholder={`${label}...`}
+                    minHeight="50px"
+                    autotexts={autotexts}
+                    fontSize={globalFontSize}
+                  />
+                </div>
+              ))}
             </div>
           </div>
-        )}
-      </div>
-    </Card>
+        </div>
+      )}
+    </div>
   );
 };

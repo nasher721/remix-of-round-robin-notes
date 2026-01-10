@@ -9,7 +9,6 @@ import { AutotextManager } from "@/components/AutotextManager";
 import { EpicHandoffImport } from "@/components/EpicHandoffImport";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -23,7 +22,8 @@ import {
   LogOut,
   Loader2,
   Cloud,
-  Type
+  Type,
+  Settings2
 } from "lucide-react";
 
 // Convert database Patient to legacy format for PatientCard
@@ -182,7 +182,7 @@ const Index = () => {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-muted-foreground">Loading...</p>
+          <p className="text-muted-foreground text-sm">Loading your workspace...</p>
         </div>
       </div>
     );
@@ -194,192 +194,210 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-gradient-header text-white shadow-xl no-print">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex justify-between items-center flex-wrap gap-4 mb-4">
-            <div>
-              <h1 className="text-3xl font-bold flex items-center gap-3">
-                🏥 Patient Rounding Assistant
-                <span className="text-xs bg-white/20 px-3 py-1 rounded-full flex items-center gap-1">
-                  <Cloud className="h-3 w-3" /> Cloud Sync
-                </span>
-              </h1>
-              <p className="text-sm text-white/80 mt-1">{user.email}</p>
+      {/* Apple-style Header */}
+      <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl no-print">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex justify-between items-center gap-6">
+            {/* Logo & Title */}
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">🏥</span>
+                <div>
+                  <h1 className="text-xl font-semibold tracking-tight">Patient Rounding</h1>
+                  <p className="text-xs text-muted-foreground">{user.email}</p>
+                </div>
+              </div>
             </div>
-            <div className="flex gap-4 text-sm items-center flex-wrap">
-              <div className="flex items-center gap-2">
-                📅 {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-              </div>
-              <div className="flex items-center gap-2">
-                🕐 {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-              </div>
+
+            {/* Center - Stats */}
+            <div className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
-                {patients.length} patient{patients.length !== 1 ? 's' : ''}
+                <span className="font-medium text-foreground">{patients.length}</span>
+                <span>patients</span>
               </div>
-              <Button onClick={handleSignOut} variant="secondary" size="sm" className="bg-white/10 hover:bg-white/20">
-                <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
-              </Button>
+              <div className="h-4 w-px bg-border" />
+              <div className="flex items-center gap-2">
+                <Cloud className="h-4 w-4 text-success" />
+                <span>Synced</span>
+              </div>
+              <div className="h-4 w-px bg-border" />
+              <span>
+                {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+              </span>
             </div>
-          </div>
-          
-          <div className="flex gap-2 flex-wrap">
-            <Button onClick={addPatient} className="bg-white text-primary hover:bg-white/90">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Patient
-            </Button>
-            <EpicHandoffImport 
-              existingBeds={patients.map(p => p.bed)}
-              onImportPatients={importPatients}
-            />
-            <AutotextManager 
-              autotexts={autotexts}
-              templates={templates}
-              onAddAutotext={addAutotext}
-              onRemoveAutotext={removeAutotext}
-              onAddTemplate={addTemplate}
-              onRemoveTemplate={removeTemplate}
-            />
-            <Button onClick={handlePrint} variant="secondary" className="bg-success text-success-foreground hover:bg-success/90">
-              <Printer className="h-4 w-4 mr-2" />
-              Print/Export
-            </Button>
-            <Button onClick={handleExport} variant="secondary" className="bg-white/10 hover:bg-white/20">
-              <Download className="h-4 w-4 mr-2" />
-              JSON
-            </Button>
-            <Button onClick={handleClearAll} variant="destructive">
-              <Trash2 className="h-4 w-4 mr-2" />
-              Clear All
+
+            {/* Right - Sign Out */}
+            <Button 
+              onClick={handleSignOut} 
+              variant="ghost" 
+              size="sm"
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
             </Button>
           </div>
         </div>
       </header>
 
-      {/* Status Bar with Font Size Control */}
-      <div className="container mx-auto px-4 py-4 no-print">
-        <Card className="p-4">
-          <div className="flex justify-between items-center flex-wrap gap-4">
-            <div className="flex gap-4 items-center">
-              <div className="flex items-center gap-2 text-sm">
-                <div className="w-2 h-2 bg-success rounded-full animate-pulse" />
-                <span>Cloud sync enabled</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Clock className="h-4 w-4" />
-                Last synced: {lastSaved.toLocaleTimeString()}
-              </div>
+      {/* Action Bar */}
+      <div className="border-b border-border bg-secondary/30 no-print">
+        <div className="container mx-auto px-6 py-3">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            {/* Primary Actions */}
+            <div className="flex items-center gap-2">
+              <Button onClick={addPatient} size="sm" className="gap-2">
+                <Plus className="h-4 w-4" />
+                Add Patient
+              </Button>
+              <EpicHandoffImport 
+                existingBeds={patients.map(p => p.bed)}
+                onImportPatients={importPatients}
+              />
+              <div className="h-6 w-px bg-border mx-1" />
+              <AutotextManager 
+                autotexts={autotexts}
+                templates={templates}
+                onAddAutotext={addAutotext}
+                onRemoveAutotext={removeAutotext}
+                onAddTemplate={addTemplate}
+                onRemoveTemplate={removeTemplate}
+              />
             </div>
-            
-            {/* Global Font Size Control */}
-            <div className="flex items-center gap-3 bg-muted/50 px-3 py-2 rounded-lg">
-              <Type className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Text Size:</span>
+
+            {/* Secondary Actions */}
+            <div className="flex items-center gap-2">
+              <Button onClick={handlePrint} variant="outline" size="sm" className="gap-2">
+                <Printer className="h-4 w-4" />
+                <span className="hidden sm:inline">Print/Export</span>
+              </Button>
+              <Button onClick={handleExport} variant="ghost" size="sm" className="gap-2">
+                <Download className="h-4 w-4" />
+                <span className="hidden sm:inline">JSON</span>
+              </Button>
+              <Button onClick={handleClearAll} variant="ghost" size="sm" className="gap-2 text-destructive hover:text-destructive hover:bg-destructive/10">
+                <Trash2 className="h-4 w-4" />
+                <span className="hidden sm:inline">Clear</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Search, Filter & Settings Bar */}
+      <div className="container mx-auto px-6 py-4 no-print">
+        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+          {/* Search & Filter */}
+          <div className="flex flex-1 gap-3 items-center w-full lg:w-auto">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search patients..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-secondary/50 border-0 focus-visible:ring-1"
+              />
+            </div>
+            <div className="flex gap-1 p-1 bg-secondary/50 rounded-lg">
+              {(['all', 'filled', 'empty'] as const).map((f) => (
+                <Button
+                  key={f}
+                  variant={filter === f ? 'default' : 'ghost'}
+                  onClick={() => setFilter(f)}
+                  size="sm"
+                  className={filter === f ? '' : 'text-muted-foreground hover:text-foreground'}
+                >
+                  {f === 'all' ? 'All' : f === 'filled' ? 'With Notes' : 'Empty'}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {/* Font Size Control */}
+          <div className="flex items-center gap-3 px-4 py-2 bg-secondary/50 rounded-lg">
+            <Type className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">Size</span>
+            <div className="flex items-center gap-2">
               <Button
-                variant="outline"
+                variant="ghost"
                 size="icon"
                 className="h-7 w-7"
                 onClick={() => setGlobalFontSize(prev => Math.max(10, prev - 2))}
                 disabled={globalFontSize <= 10}
               >
-                <span className="text-lg font-bold">−</span>
+                <span className="text-lg font-medium">−</span>
               </Button>
               <Slider
                 value={[globalFontSize]}
                 min={10}
                 max={24}
                 step={1}
-                className="w-24"
+                className="w-20"
                 onValueChange={(v) => setGlobalFontSize(v[0])}
               />
               <Button
-                variant="outline"
+                variant="ghost"
                 size="icon"
                 className="h-7 w-7"
                 onClick={() => setGlobalFontSize(prev => Math.min(24, prev + 2))}
                 disabled={globalFontSize >= 24}
               >
-                <span className="text-lg font-bold">+</span>
+                <span className="text-lg font-medium">+</span>
               </Button>
-              <span className="text-sm font-mono w-10 text-center">{globalFontSize}px</span>
             </div>
+            <span className="text-xs font-mono text-muted-foreground w-8">{globalFontSize}px</span>
           </div>
-        </Card>
-      </div>
+        </div>
 
-      {/* Search and Filter */}
-      <div className="container mx-auto px-4 py-4 no-print">
-        <Card className="p-4">
-          <div className="flex gap-4 flex-wrap items-center">
-            <div className="flex-1 min-w-[250px] relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search patients by name, bed, or content..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant={filter === 'all' ? 'default' : 'outline'}
-                onClick={() => setFilter('all')}
-                size="sm"
-              >
-                All
-              </Button>
-              <Button
-                variant={filter === 'filled' ? 'default' : 'outline'}
-                onClick={() => setFilter('filled')}
-                size="sm"
-              >
-                With Notes
-              </Button>
-              <Button
-                variant={filter === 'empty' ? 'default' : 'outline'}
-                onClick={() => setFilter('empty')}
-                size="sm"
-              >
-                Empty
-              </Button>
-            </div>
-          </div>
-        </Card>
+        {/* Sync Status */}
+        <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
+          <div className="w-1.5 h-1.5 bg-success rounded-full" />
+          <Clock className="h-3 w-3" />
+          <span>Last synced {lastSaved.toLocaleTimeString()}</span>
+        </div>
       </div>
 
       {/* Patient Cards */}
-      <div className="container mx-auto px-4 pb-8">
+      <div className="container mx-auto px-6 pb-12">
         <div className="space-y-4">
           {legacyPatients.length === 0 ? (
-            <Card className="p-12 text-center">
-              <div className="text-6xl mb-4">🏥</div>
-              <h3 className="text-2xl font-bold mb-2">
+            <div className="flex flex-col items-center justify-center py-24 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mb-6">
+                <span className="text-3xl">🏥</span>
+              </div>
+              <h3 className="text-2xl font-semibold mb-2">
                 {patients.length === 0 ? 'Ready to Start Rounds' : 'No patients match your filter'}
               </h3>
-              <p className="text-muted-foreground mb-4">
-                {patients.length === 0 ? 'Add your first patient to begin' : 'Try adjusting your search or filter'}
+              <p className="text-muted-foreground mb-6 max-w-sm">
+                {patients.length === 0 
+                  ? 'Add your first patient to begin documenting rounds.' 
+                  : 'Try adjusting your search or filter criteria.'}
               </p>
               {patients.length === 0 && (
-                <Button onClick={addPatient}>
-                  <Plus className="h-4 w-4 mr-2" />
+                <Button onClick={addPatient} size="lg" className="gap-2">
+                  <Plus className="h-5 w-5" />
                   Add First Patient
                 </Button>
               )}
-            </Card>
+            </div>
           ) : (
-            legacyPatients.map(patient => (
-              <PatientCard
-                key={patient.dbId}
-                patient={patient}
-                onUpdate={handleUpdatePatient}
-                onRemove={handleRemovePatient}
-                onDuplicate={handleDuplicatePatient}
-                onToggleCollapse={handleToggleCollapse}
-                autotexts={autotexts}
-                globalFontSize={globalFontSize}
-              />
+            legacyPatients.map((patient, index) => (
+              <div 
+                key={patient.dbId} 
+                className="animate-fade-in"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <PatientCard
+                  patient={patient}
+                  onUpdate={handleUpdatePatient}
+                  onRemove={handleRemovePatient}
+                  onDuplicate={handleDuplicatePatient}
+                  onToggleCollapse={handleToggleCollapse}
+                  autotexts={autotexts}
+                  globalFontSize={globalFontSize}
+                />
+              </div>
             ))
           )}
         </div>
