@@ -53,7 +53,7 @@ For each patient, extract:
 - age: Patient's age
 - sex: Patient's sex (M or F)
 - handoffSummary: The main handoff summary text (clinical overview, history, plan - but NOT the "What we did on rounds" section)
-- intervalEvents: The "What we did on rounds" section content specifically (this section documents what happened during rounds, updates, progress notes). Look for sections titled "What we did on rounds", "Rounds update", "Events", or similar daily update sections.
+- intervalEvents: The "What we did on rounds" section content specifically (this section documents what happened during rounds, updates, progress notes). Look for sections titled "What we did on rounds", "Rounds update", "Events", or similar daily update sections. IMPORTANT: Do NOT include the section header itself (e.g., "What we did on rounds:") in the extracted text - only include the actual content that follows the header.
 - bedStatus: Any bed status information (if present)
 
 Return ONLY valid JSON in this exact format:
