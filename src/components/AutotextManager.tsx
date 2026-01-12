@@ -23,11 +23,8 @@ import {
   Copy,
   Sparkles
 } from "lucide-react";
-import { 
-  AutoText, 
-  Template, 
-  medicalDictionary 
-} from "@/data/autotexts";
+import { medicalDictionary } from "@/data/autotexts";
+import type { AutoText, Template } from "@/types/autotext";
 import { useToast } from "@/hooks/use-toast";
 
 interface AutotextManagerProps {

@@ -1,17 +1,8 @@
 // Autotext shortcuts and boilerplate templates for medical documentation
 
-export interface AutoText {
-  shortcut: string;
-  expansion: string;
-  category: string;
-}
-
-export interface Template {
-  id: string;
-  name: string;
-  category: string;
-  content: string;
-}
+// Re-export types from centralized location
+export type { AutoText, Template } from "@/types/autotext";
+import type { AutoText, Template } from "@/types/autotext";
 
 // Common medical abbreviation expansions (type shortcut, get expansion)
 export const defaultAutotexts: AutoText[] = [
