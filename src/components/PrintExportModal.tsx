@@ -23,7 +23,7 @@ import {
   Columns,
   RotateCcw
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
@@ -92,7 +92,64 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
   const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
   const [patientNotes, setPatientNotes] = useState<Record<string, string>>({});
   const [columnsOpen, setColumnsOpen] = useState(false);
+  const [resizing, setResizing] = useState<{ column: string; startX: number; startWidth: number } | null>(null);
   const { toast } = useToast();
+
+  // Drag-to-resize handlers
+  const handleResizeStart = useCallback((column: string, startWidth: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    setResizing({ column, startX: e.clientX, startWidth });
+  }, []);
+
+  const handleResizeMove = useCallback((e: MouseEvent) => {
+    if (!resizing) return;
+    const diff = e.clientX - resizing.startX;
+    const newWidth = Math.max(50, Math.min(400, resizing.startWidth + diff));
+    setColumnWidths(prev => ({ ...prev, [resizing.column]: newWidth }));
+  }, [resizing]);
+
+  const handleResizeEnd = useCallback(() => {
+    setResizing(null);
+  }, []);
+
+  // Attach/detach mouse events for resizing
+  useEffect(() => {
+    if (resizing) {
+      document.addEventListener('mousemove', handleResizeMove);
+      document.addEventListener('mouseup', handleResizeEnd);
+      return () => {
+        document.removeEventListener('mousemove', handleResizeMove);
+        document.removeEventListener('mouseup', handleResizeEnd);
+      };
+    }
+  }, [resizing, handleResizeMove, handleResizeEnd]);
+
+  // ResizableHeader component
+  const ResizableHeader = ({ 
+    column, 
+    width, 
+    children, 
+    className = "" 
+  }: { 
+    column: string; 
+    width: number; 
+    children: React.ReactNode; 
+    className?: string;
+  }) => (
+    <th 
+      className={cn("border border-border p-2 text-left font-bold relative select-none", className)}
+      style={{ width }}
+    >
+      {children}
+      <div
+        className="absolute top-0 right-0 h-full w-2 cursor-col-resize hover:bg-white/30 transition-colors no-print"
+        onMouseDown={(e) => handleResizeStart(column, width, e)}
+        title="Drag to resize"
+      >
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 h-4 w-0.5 bg-white/50 rounded" />
+      </div>
+    </th>
+  );
 
   const showNotesColumn = columns.find(c => c.key === "notes")?.enabled ?? false;
 
@@ -880,7 +937,7 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
               </div>
               
               <div className="text-xs text-muted-foreground mb-3 no-print bg-muted/30 p-2 rounded">
-                💡 Click any cell to expand/collapse • {isEditMode && "Double-click to edit •"} Use sliders to adjust column widths
+                💡 Click any cell to expand/collapse • {isEditMode && "Double-click to edit •"} Drag column edges to resize
               </div>
               
               <div className="overflow-x-auto">
@@ -888,21 +945,34 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
                   <thead>
                     <tr className="bg-primary text-primary-foreground">
                       {isColumnEnabled("patient") && (
-                        <th className="border border-border p-2 text-left font-bold" style={{ width: columnWidths.patient }}>Patient</th>
+                        <ResizableHeader column="patient" width={columnWidths.patient}>
+                          Patient
+                        </ResizableHeader>
                       )}
                       {isColumnEnabled("clinicalSummary") && (
-                        <th className="border border-border p-2 text-left font-bold" style={{ width: columnWidths.summary }}>Clinical Summary</th>
+                        <ResizableHeader column="summary" width={columnWidths.summary}>
+                          Clinical Summary
+                        </ResizableHeader>
                       )}
                       {isColumnEnabled("intervalEvents") && (
-                        <th className="border border-border p-2 text-left font-bold" style={{ width: columnWidths.events }}>Interval Events</th>
+                        <ResizableHeader column="events" width={columnWidths.events}>
+                          Interval Events
+                        </ResizableHeader>
                       )}
-                      {enabledSystemKeys.map(key => (
-                        <th key={key} className="border border-border p-2 text-left font-bold text-[10px]" style={{ width: columnWidths.systems }}>
+                      {enabledSystemKeys.map((key, idx) => (
+                        <ResizableHeader 
+                          key={key} 
+                          column="systems" 
+                          width={columnWidths.systems}
+                          className="text-[10px]"
+                        >
                           {systemLabels[key]}
-                        </th>
+                        </ResizableHeader>
                       ))}
                       {showNotesColumn && (
-                        <th className="border border-border p-2 text-left font-bold bg-amber-500 text-white" style={{ width: columnWidths.notes }}>Notes</th>
+                        <ResizableHeader column="notes" width={columnWidths.notes} className="bg-amber-500 text-white">
+                          Notes
+                        </ResizableHeader>
                       )}
                     </tr>
                   </thead>
