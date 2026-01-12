@@ -236,7 +236,7 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
     });
     if (isColumnEnabled("notes")) headers.push("Notes");
 
-    // Table data
+    // Table data - show full text, let autoTable handle wrapping
     const tableData = patients.map(patient => {
       const row: string[] = [];
       
@@ -245,22 +245,18 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
         row.push(patient.bed || "-");
       }
       if (isColumnEnabled("clinicalSummary")) {
-        const summary = stripHtml(patient.clinicalSummary);
-        row.push(summary.substring(0, 100) + (summary.length > 100 ? "..." : ""));
+        row.push(stripHtml(patient.clinicalSummary));
       }
       if (isColumnEnabled("intervalEvents")) {
-        const events = stripHtml(patient.intervalEvents);
-        row.push(events.substring(0, 100) + (events.length > 100 ? "..." : ""));
+        row.push(stripHtml(patient.intervalEvents));
       }
       systemKeys.forEach(key => {
         if (isColumnEnabled(`systems.${key}`)) {
-          const val = stripHtml(patient.systems[key as keyof typeof patient.systems]);
-          row.push(val.substring(0, 40) + (val.length > 40 ? "..." : ""));
+          row.push(stripHtml(patient.systems[key as keyof typeof patient.systems]));
         }
       });
       if (isColumnEnabled("notes")) {
-        const notes = patientNotes[patient.id] || "";
-        row.push(notes.substring(0, 60) + (notes.length > 60 ? "..." : ""));
+        row.push(patientNotes[patient.id] || "");
       }
       
       return row;
@@ -272,9 +268,10 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
       startY: 32,
       styles: {
         fontSize: 6,
-        cellPadding: 1.5,
+        cellPadding: 2,
         overflow: 'linebreak',
         lineWidth: 0.1,
+        cellWidth: 'wrap',
       },
       headStyles: {
         fillColor: [59, 130, 246],
@@ -285,7 +282,17 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
       alternateRowStyles: {
         fillColor: [245, 247, 250]
       },
-      margin: { top: 32, left: 10, right: 10 }
+      columnStyles: {
+        // Allow text to wrap in all columns
+        0: { cellWidth: 'auto' },
+        1: { cellWidth: 'auto' },
+        2: { cellWidth: 'auto' },
+        3: { cellWidth: 'auto' },
+      },
+      margin: { top: 32, left: 10, right: 10 },
+      tableWidth: 'auto',
+      showHead: 'everyPage',
+      rowPageBreak: 'auto',
     });
 
     // Add detailed pages for each patient
@@ -426,7 +433,9 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
               text-align: left; 
               vertical-align: top; 
               word-wrap: break-word; 
-              overflow-wrap: break-word; 
+              overflow-wrap: break-word;
+              white-space: pre-wrap !important;
+              max-width: none !important;
             }
             th { 
               background: linear-gradient(180deg, #1e40af 0%, #1e3a8a 100%); 
@@ -441,7 +450,13 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
             tr:hover td { background: #e0f2fe; }
             .patient-name { font-weight: 700; color: #1e40af; font-size: 9px; }
             .bed { color: #6b7280; font-size: 7px; display: block; margin-top: 2px; }
-            .content { white-space: pre-wrap; word-break: break-word; }
+            .content { white-space: pre-wrap !important; word-break: break-word; }
+            .line-clamp-3 { 
+              -webkit-line-clamp: unset !important; 
+              display: block !important; 
+              overflow: visible !important;
+              max-height: none !important;
+            }
             .system-label { font-weight: 600; color: #374151; display: block; font-size: 7px; margin-bottom: 1px; }
             .no-break { page-break-inside: avoid; }
             .notes-cell { background: #fffbeb !important; }
@@ -452,6 +467,16 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
               th { background: #1e40af !important; color: #fff !important; }
               tr:nth-child(even) td { background: #f8fafc !important; }
               .notes-cell { background: #fffbeb !important; }
+              td, th { 
+                white-space: pre-wrap !important; 
+                overflow: visible !important;
+                max-height: none !important;
+              }
+              .line-clamp-3 { 
+                -webkit-line-clamp: unset !important; 
+                display: block !important; 
+                overflow: visible !important;
+              }
             }
             .card-view { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
             .patient-card { 
