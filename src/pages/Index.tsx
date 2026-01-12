@@ -43,10 +43,6 @@ const Index = () => {
   } = usePatients();
   const { autotexts, templates, addAutotext, removeAutotext, addTemplate, removeTemplate } = useCloudAutotexts();
   
-  // IBCC Clinical Reference
-  const currentPatient = filteredPatients.length > 0 ? filteredPatients[0] : undefined;
-  const { isOpen: ibccOpen, togglePanel: toggleIBCC, contextSuggestions } = useIBCC(currentPatient);
-  
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'filled' | 'empty'>('all');
   const [showPrintModal, setShowPrintModal] = useState(false);
@@ -154,6 +150,10 @@ const Index = () => {
     
     return matchesSearch;
   });
+
+  // IBCC Clinical Reference - must be after filteredPatients is defined
+  const currentPatient = filteredPatients.length > 0 ? filteredPatients[0] : undefined;
+  const ibcc = useIBCC(currentPatient);
 
   if (authLoading || patientsLoading) {
     return (
@@ -387,6 +387,9 @@ const Index = () => {
         patients={filteredPatients}
         onUpdatePatient={handleUpdatePatient}
       />
+
+      {/* IBCC Clinical Reference Panel */}
+      <IBCCPanel currentPatient={currentPatient} />
     </div>
   );
 };
