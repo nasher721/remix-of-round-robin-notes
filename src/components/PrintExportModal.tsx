@@ -1,4 +1,5 @@
-import { Patient } from "@/types/patient";
+import type { Patient, PatientSystems } from "@/types/patient";
+import { SYSTEM_LABELS_SHORT, SYSTEM_KEYS } from "@/constants/systems";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -37,23 +38,11 @@ interface PrintExportModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   patients: Patient[];
-  onUpdatePatient?: (id: number, field: string, value: string) => void;
+  onUpdatePatient?: (id: string, field: string, value: string) => void;
 }
 
-const systemLabels: Record<string, string> = {
-  neuro: "Neuro",
-  cv: "CV",
-  resp: "Resp",
-  renalGU: "Renal/GU",
-  gi: "GI",
-  endo: "Endo",
-  heme: "Heme",
-  infectious: "ID",
-  skinLines: "Skin/Lines",
-  dispo: "Dispo"
-};
-
-const systemKeys = Object.keys(systemLabels);
+const systemLabels = SYSTEM_LABELS_SHORT;
+const systemKeys = SYSTEM_KEYS;
 
 // All available columns for customization
 interface ColumnConfig {
@@ -71,7 +60,7 @@ const defaultColumns: ColumnConfig[] = [
 ];
 
 interface ExpandedCell {
-  patientId: number;
+  patientId: string;
   field: string;
 }
 
@@ -95,7 +84,7 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
   });
   const [isEditMode, setIsEditMode] = useState(false);
   const [columns, setColumns] = useState<ColumnConfig[]>(defaultColumns);
-  const [patientNotes, setPatientNotes] = useState<Record<number, string>>({});
+  const [patientNotes, setPatientNotes] = useState<Record<string, string>>({});
   const [columnsOpen, setColumnsOpen] = useState(false);
   const { toast } = useToast();
 
@@ -117,7 +106,7 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
     ));
   };
 
-  const handleCellClick = (patientId: number, field: string) => {
+  const handleCellClick = (patientId: string, field: string) => {
     if (expandedCell?.patientId === patientId && expandedCell?.field === field) {
       setExpandedCell(null);
     } else {
@@ -125,7 +114,7 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
     }
   };
 
-  const handleDoubleClick = (patientId: number, field: string, currentValue: string) => {
+  const handleDoubleClick = (patientId: string, field: string, currentValue: string) => {
     if (!onUpdatePatient) return;
     setEditingCell({ patientId, field });
     setEditValue(currentValue || "");
@@ -144,10 +133,10 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
     setEditValue("");
   };
 
-  const isExpanded = (patientId: number, field: string) => 
+  const isExpanded = (patientId: string, field: string) => 
     expandedCell?.patientId === patientId && expandedCell?.field === field;
 
-  const isEditing = (patientId: number, field: string) =>
+  const isEditing = (patientId: string, field: string) =>
     editingCell?.patientId === patientId && editingCell?.field === field;
 
   const getCellValue = (patient: Patient, field: string): string => {

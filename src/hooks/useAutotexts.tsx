@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { useToast } from "./use-toast";
-import { defaultAutotexts, defaultTemplates, AutoText, Template } from "@/data/autotexts";
+import { defaultAutotexts, defaultTemplates } from "@/data/autotexts";
+import type { AutoText, Template } from "@/types/autotext";
 
 export const useCloudAutotexts = () => {
   const [autotexts, setAutotexts] = useState<AutoText[]>(defaultAutotexts);

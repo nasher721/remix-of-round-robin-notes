@@ -2,35 +2,11 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { useToast } from "./use-toast";
+import type { Patient, PatientSystems, defaultSystems } from "@/types/patient";
+import { parseSystemsJson, dbToUiPatient, prepareUpdateData } from "@/lib/mappers/patientMapper";
 import type { Json } from "@/integrations/supabase/types";
 
-export interface PatientSystems {
-  neuro: string;
-  cv: string;
-  resp: string;
-  renalGU: string;
-  gi: string;
-  endo: string;
-  heme: string;
-  infectious: string;
-  skinLines: string;
-  dispo: string;
-}
-
-export interface Patient {
-  id: string;
-  patient_number: number;
-  name: string;
-  bed: string;
-  clinical_summary: string;
-  interval_events: string;
-  systems: PatientSystems;
-  collapsed: boolean;
-  created_at: string;
-  last_modified: string;
-}
-
-const defaultSystems: PatientSystems = {
+const defaultSystemsValue: PatientSystems = {
   neuro: "",
   cv: "",
   resp: "",
@@ -43,24 +19,7 @@ const defaultSystems: PatientSystems = {
   dispo: "",
 };
 
-const parseSystemsJson = (systems: Json | null): PatientSystems => {
-  if (!systems || typeof systems !== 'object' || Array.isArray(systems)) {
-    return defaultSystems;
-  }
-  const s = systems as Record<string, unknown>;
-  return {
-    neuro: String(s.neuro || ''),
-    cv: String(s.cv || ''),
-    resp: String(s.resp || ''),
-    renalGU: String(s.renalGU || ''),
-    gi: String(s.gi || ''),
-    endo: String(s.endo || ''),
-    heme: String(s.heme || ''),
-    infectious: String(s.infectious || ''),
-    skinLines: String(s.skinLines || ''),
-    dispo: String(s.dispo || ''),
-  };
-};
+export type { Patient, PatientSystems };
 
 export const usePatients = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -87,21 +46,21 @@ export const usePatients = () => {
 
       const formattedPatients: Patient[] = (data || []).map((p) => ({
         id: p.id,
-        patient_number: p.patient_number,
+        patientNumber: p.patient_number,
         name: p.name,
         bed: p.bed,
-        clinical_summary: p.clinical_summary,
-        interval_events: p.interval_events,
+        clinicalSummary: p.clinical_summary,
+        intervalEvents: p.interval_events,
         systems: parseSystemsJson(p.systems),
         collapsed: p.collapsed,
-        created_at: p.created_at,
-        last_modified: p.last_modified,
+        createdAt: p.created_at,
+        lastModified: p.last_modified,
       }));
 
       setPatients(formattedPatients);
       
       // Set counter to max patient_number + 1
-      const maxNumber = formattedPatients.reduce((max, p) => Math.max(max, p.patient_number), 0);
+      const maxNumber = formattedPatients.reduce((max, p) => Math.max(max, p.patientNumber), 0);
       setPatientCounter(maxNumber + 1);
     } catch (error) {
       console.error("Error fetching patients:", error);
@@ -132,7 +91,7 @@ export const usePatients = () => {
           bed: "",
           clinical_summary: "",
           interval_events: "",
-          systems: defaultSystems as unknown as Json,
+          systems: defaultSystemsValue as unknown as Json,
           collapsed: false,
         }])
         .select()
@@ -142,15 +101,15 @@ export const usePatients = () => {
 
       const newPatient: Patient = {
         id: data.id,
-        patient_number: data.patient_number,
+        patientNumber: data.patient_number,
         name: data.name,
         bed: data.bed,
-        clinical_summary: data.clinical_summary,
-        interval_events: data.interval_events,
+        clinicalSummary: data.clinical_summary,
+        intervalEvents: data.interval_events,
         systems: parseSystemsJson(data.systems),
         collapsed: data.collapsed,
-        created_at: data.created_at,
-        last_modified: data.last_modified,
+        createdAt: data.created_at,
+        lastModified: data.last_modified,
       };
 
       setPatients((prev) => [...prev, newPatient]);
@@ -177,7 +136,7 @@ export const usePatients = () => {
     setPatients((prev) =>
       prev.map((p) => {
         if (p.id === id) {
-          const updated = { ...p, last_modified: new Date().toISOString() };
+          const updated = { ...p, lastModified: new Date().toISOString() };
           if (field.includes(".")) {
             const [parent, child] = field.split(".");
             if (parent === "systems") {
@@ -193,25 +152,8 @@ export const usePatients = () => {
     );
 
     // Prepare update object
-    const updateData: Record<string, unknown> = {};
-    if (field.includes(".")) {
-      const [parent, child] = field.split(".");
-      if (parent === "systems") {
-        const patient = patients.find((p) => p.id === id);
-        if (patient) {
-          updateData.systems = { ...patient.systems, [child]: value };
-        }
-      }
-    } else {
-      // Map field names to database column names
-      const fieldMap: Record<string, string> = {
-        clinicalSummary: "clinical_summary",
-        intervalEvents: "interval_events",
-        clinical_summary: "clinical_summary",
-        interval_events: "interval_events",
-      };
-      updateData[fieldMap[field] || field] = value;
-    }
+    const patient = patients.find((p) => p.id === id);
+    const updateData = prepareUpdateData(field, value, patient?.systems);
 
     try {
       const { error } = await supabase
@@ -269,8 +211,8 @@ export const usePatients = () => {
           patient_number: patientCounter,
           name: patient.name + " (Copy)",
           bed: patient.bed,
-          clinical_summary: patient.clinical_summary,
-          interval_events: patient.interval_events,
+          clinical_summary: patient.clinicalSummary,
+          interval_events: patient.intervalEvents,
           systems: patient.systems as unknown as Json,
           collapsed: false,
         }])
@@ -281,15 +223,15 @@ export const usePatients = () => {
 
       const newPatient: Patient = {
         id: data.id,
-        patient_number: data.patient_number,
+        patientNumber: data.patient_number,
         name: data.name,
         bed: data.bed,
-        clinical_summary: data.clinical_summary,
-        interval_events: data.interval_events,
+        clinicalSummary: data.clinical_summary,
+        intervalEvents: data.interval_events,
         systems: parseSystemsJson(data.systems),
         collapsed: data.collapsed,
-        created_at: data.created_at,
-        last_modified: data.last_modified,
+        createdAt: data.created_at,
+        lastModified: data.last_modified,
       };
 
       setPatients((prev) => [...prev, newPatient]);
@@ -338,7 +280,7 @@ export const usePatients = () => {
             bed: p.bed,
             clinical_summary: p.clinicalSummary,
             interval_events: p.intervalEvents || "",
-            systems: defaultSystems as unknown as Json,
+            systems: defaultSystemsValue as unknown as Json,
             collapsed: false,
           }])
           .select()
@@ -348,15 +290,15 @@ export const usePatients = () => {
 
         newPatients.push({
           id: data.id,
-          patient_number: data.patient_number,
+          patientNumber: data.patient_number,
           name: data.name,
           bed: data.bed,
-          clinical_summary: data.clinical_summary,
-          interval_events: data.interval_events,
+          clinicalSummary: data.clinical_summary,
+          intervalEvents: data.interval_events,
           systems: parseSystemsJson(data.systems),
           collapsed: data.collapsed,
-          created_at: data.created_at,
-          last_modified: data.last_modified,
+          createdAt: data.created_at,
+          lastModified: data.last_modified,
         });
 
         currentCounter++;

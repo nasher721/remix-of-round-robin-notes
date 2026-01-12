@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Bold, Italic, Underline, List, ListOrdered, Type, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { defaultAutotexts, medicalDictionary, AutoText } from "@/data/autotexts";
+import { defaultAutotexts, medicalDictionary } from "@/data/autotexts";
+import type { AutoText } from "@/types/autotext";
 
 interface RichTextEditorProps {
   value: string;

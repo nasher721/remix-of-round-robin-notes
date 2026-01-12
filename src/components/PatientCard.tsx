@@ -3,69 +3,20 @@ import { Input } from "@/components/ui/input";
 import { FileText, Calendar, Copy, Trash2, ChevronDown, ChevronUp, Clock } from "lucide-react";
 import { useState } from "react";
 import { RichTextEditor } from "./RichTextEditor";
-import { AutoText, defaultAutotexts } from "@/data/autotexts";
-
-interface PatientSystems {
-  neuro: string;
-  cv: string;
-  resp: string;
-  renalGU: string;
-  gi: string;
-  endo: string;
-  heme: string;
-  infectious: string;
-  skinLines: string;
-  dispo: string;
-}
-
-interface PatientData {
-  id: number;
-  dbId?: string;
-  name: string;
-  bed: string;
-  clinicalSummary: string;
-  intervalEvents: string;
-  systems: PatientSystems;
-  createdAt: string;
-  lastModified: string;
-  collapsed: boolean;
-}
+import { AutoText } from "@/types/autotext";
+import { defaultAutotexts } from "@/data/autotexts";
+import type { Patient, PatientSystems } from "@/types/patient";
+import { SYSTEM_LABELS, SYSTEM_ICONS } from "@/constants/systems";
 
 interface PatientCardProps {
-  patient: PatientData;
-  onUpdate: (id: number, field: string, value: unknown) => void;
-  onRemove: (id: number) => void;
-  onDuplicate: (id: number) => void;
-  onToggleCollapse: (id: number) => void;
+  patient: Patient;
+  onUpdate: (id: string, field: string, value: unknown) => void;
+  onRemove: (id: string) => void;
+  onDuplicate: (id: string) => void;
+  onToggleCollapse: (id: string) => void;
   autotexts?: AutoText[];
   globalFontSize?: number;
 }
-
-const systemLabels = {
-  neuro: "Neuro",
-  cv: "Cardiovascular",
-  resp: "Respiratory",
-  renalGU: "Renal/GU",
-  gi: "GI/Nutrition",
-  endo: "Endocrine",
-  heme: "Hematology",
-  infectious: "Infectious",
-  skinLines: "Skin/Lines",
-  dispo: "Disposition"
-};
-
-const systemIcons = {
-  neuro: "🧠",
-  cv: "❤️",
-  resp: "🫁",
-  renalGU: "💧",
-  gi: "🍽️",
-  endo: "⚡",
-  heme: "🩸",
-  infectious: "🦠",
-  skinLines: "🩹",
-  dispo: "🏠"
-};
 
 export const PatientCard = ({ 
   patient, 
@@ -85,8 +36,8 @@ export const PatientCard = ({
       hour12: true
     });
     const currentValue = field.includes('.') 
-      ? patient.systems[field.split('.')[1] as keyof typeof patient.systems]
-      : patient[field as keyof PatientData];
+      ? patient.systems[field.split('.')[1] as keyof PatientSystems]
+      : patient[field as keyof Patient];
     const newValue = `[${timestamp}] ${currentValue || ''}`;
     onUpdate(patient.id, field, newValue);
   };
@@ -98,7 +49,7 @@ export const PatientCard = ({
   };
 
   const hasSystemContent = (key: string) => {
-    return Boolean(patient.systems[key as keyof typeof patient.systems]);
+    return Boolean(patient.systems[key as keyof PatientSystems]);
   };
 
   return (
@@ -255,7 +206,7 @@ export const PatientCard = ({
               <h3 className="text-sm font-medium">Systems Review</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              {Object.entries(systemLabels).map(([key, label]) => (
+              {Object.entries(SYSTEM_LABELS).map(([key, label]) => (
                 <div 
                   key={key} 
                   className={`rounded-lg p-3 border transition-all duration-200 ${
@@ -266,7 +217,7 @@ export const PatientCard = ({
                 >
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground">
-                      <span>{systemIcons[key as keyof typeof systemIcons]}</span>
+                      <span>{SYSTEM_ICONS[key]}</span>
                       {label}
                     </label>
                     {hasSystemContent(key) && (
@@ -274,7 +225,7 @@ export const PatientCard = ({
                     )}
                   </div>
                   <RichTextEditor
-                    value={patient.systems[key as keyof typeof patient.systems]}
+                    value={patient.systems[key as keyof PatientSystems]}
                     onChange={(value) => onUpdate(patient.id, `systems.${key}`, value)}
                     placeholder={`${label}...`}
                     minHeight="50px"
