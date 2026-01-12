@@ -21,7 +21,10 @@ import {
   Settings2,
   ChevronDown,
   Columns,
-  RotateCcw
+  RotateCcw,
+  GripVertical,
+  Fullscreen,
+  X
 } from "lucide-react";
 import { useRef, useState, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -93,6 +96,7 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
   const [patientNotes, setPatientNotes] = useState<Record<string, string>>({});
   const [columnsOpen, setColumnsOpen] = useState(false);
   const [resizing, setResizing] = useState<{ column: string; startX: number; startWidth: number } | null>(null);
+  const [isFullPreview, setIsFullPreview] = useState(false);
   const { toast } = useToast();
 
   // Drag-to-resize handlers
@@ -124,7 +128,7 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
     }
   }, [resizing, handleResizeMove, handleResizeEnd]);
 
-  // ResizableHeader component
+  // ResizableHeader component with improved visual feedback
   const ResizableHeader = ({ 
     column, 
     width, 
@@ -137,16 +141,24 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
     className?: string;
   }) => (
     <th 
-      className={cn("border border-border p-2 text-left font-bold relative select-none", className)}
+      className={cn(
+        "border border-border p-2 text-left font-bold relative select-none group",
+        resizing?.column === column && "bg-primary/80",
+        className
+      )}
       style={{ width }}
     >
       {children}
       <div
-        className="absolute top-0 right-0 h-full w-2 cursor-col-resize hover:bg-white/30 transition-colors no-print"
+        className={cn(
+          "absolute top-0 right-0 h-full w-4 cursor-col-resize flex items-center justify-center no-print transition-all",
+          "hover:bg-white/30 group-hover:opacity-100 opacity-60",
+          resizing?.column === column && "bg-white/40 opacity-100"
+        )}
         onMouseDown={(e) => handleResizeStart(column, width, e)}
-        title="Drag to resize"
+        title="Drag to resize column"
       >
-        <div className="absolute right-0 top-1/2 -translate-y-1/2 h-4 w-0.5 bg-white/50 rounded" />
+        <GripVertical className="h-4 w-4 text-white/80" />
       </div>
     </th>
   );
@@ -697,22 +709,156 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
     );
   };
 
+  // Notes cell - displays blank lined space for handwritten notes (no textarea)
   const NotesCell = ({ patient }: { patient: Patient }) => {
-    const notes = patientNotes[patient.id] || "";
-    
     return (
-      <td className="border border-border p-1 align-top bg-amber-50">
-        <textarea
-          value={notes}
-          onChange={(e) => setPatientNotes(prev => ({ ...prev, [patient.id]: e.target.value }))}
-          placeholder="Add rounding notes..."
-          className="w-full min-h-[40px] text-xs p-1 border-0 bg-transparent resize-y focus:outline-none focus:ring-1 focus:ring-primary rounded"
-        />
+      <td className="border border-border p-1 align-top bg-amber-50/50">
+        <div className="min-h-[60px] w-full relative">
+          {/* Lined paper effect for handwritten notes */}
+          <div className="absolute inset-0 flex flex-col justify-start pt-1">
+            {[...Array(4)].map((_, i) => (
+              <div 
+                key={i} 
+                className="border-b border-amber-200/60 h-[14px] w-full"
+              />
+            ))}
+          </div>
+        </div>
       </td>
     );
   };
 
   const enabledSystemKeys = getEnabledSystemKeys();
+
+  // Full-page preview modal
+  if (isFullPreview) {
+    return (
+      <div className="fixed inset-0 z-50 bg-white overflow-auto print:overflow-visible">
+        {/* Full preview header */}
+        <div className="sticky top-0 z-10 bg-white border-b shadow-sm p-3 flex items-center justify-between no-print">
+          <div className="flex items-center gap-3">
+            <h2 className="font-bold text-lg flex items-center gap-2">
+              <Fullscreen className="h-5 w-5 text-primary" />
+              Full Page Preview
+            </h2>
+            <span className="text-sm text-muted-foreground">
+              This is exactly how your document will look when printed
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handlePrint} className="gap-2">
+              <Printer className="h-4 w-4" />
+              Print Now
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setIsFullPreview(false)}>
+              <X className="h-4 w-4" />
+              Close Preview
+            </Button>
+          </div>
+        </div>
+        
+        {/* Full preview content */}
+        <div className="p-8 max-w-[1200px] mx-auto" ref={printRef}>
+          <div className="header flex justify-between items-center mb-6 border-b-2 border-primary pb-4">
+            <div>
+              <h1 className="text-2xl font-bold text-primary">🏥 Patient Rounding Report</h1>
+              <div className="text-sm text-muted-foreground mt-1">Full page print preview</div>
+            </div>
+            <div className="text-right">
+              <div className="font-medium text-lg">{dateStr}</div>
+              <div className="text-sm text-muted-foreground">{timeStr} • {patients.length} patients</div>
+            </div>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm" style={{ tableLayout: 'fixed' }}>
+              <thead>
+                <tr className="bg-primary text-primary-foreground">
+                  {isColumnEnabled("patient") && (
+                    <th className="border border-border p-3 text-left font-bold" style={{ width: columnWidths.patient }}>
+                      Patient
+                    </th>
+                  )}
+                  {isColumnEnabled("clinicalSummary") && (
+                    <th className="border border-border p-3 text-left font-bold" style={{ width: columnWidths.summary }}>
+                      Clinical Summary
+                    </th>
+                  )}
+                  {isColumnEnabled("intervalEvents") && (
+                    <th className="border border-border p-3 text-left font-bold" style={{ width: columnWidths.events }}>
+                      Interval Events
+                    </th>
+                  )}
+                  {enabledSystemKeys.map(key => (
+                    <th 
+                      key={key} 
+                      className="border border-border p-3 text-left font-bold text-xs"
+                      style={{ width: columnWidths.systems }}
+                    >
+                      {systemLabels[key]}
+                    </th>
+                  ))}
+                  {showNotesColumn && (
+                    <th 
+                      className="border border-border p-3 text-left font-bold bg-amber-500 text-white"
+                      style={{ width: columnWidths.notes }}
+                    >
+                      Notes
+                    </th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {patients.map((patient, idx) => (
+                  <tr key={patient.id} className={cn("border-b", idx % 2 === 0 ? "bg-white" : "bg-muted/20")}>
+                    {isColumnEnabled("patient") && (
+                      <td className="border border-border p-3 align-top">
+                        <div className="font-bold text-primary">{patient.name || 'Unnamed'}</div>
+                        <div className="text-xs text-muted-foreground">Bed: {patient.bed || 'N/A'}</div>
+                      </td>
+                    )}
+                    {isColumnEnabled("clinicalSummary") && (
+                      <td className="border border-border p-3 align-top">
+                        <div 
+                          className="text-sm whitespace-pre-wrap break-words"
+                          dangerouslySetInnerHTML={{ __html: patient.clinicalSummary }}
+                        />
+                      </td>
+                    )}
+                    {isColumnEnabled("intervalEvents") && (
+                      <td className="border border-border p-3 align-top">
+                        <div 
+                          className="text-sm whitespace-pre-wrap break-words"
+                          dangerouslySetInnerHTML={{ __html: patient.intervalEvents }}
+                        />
+                      </td>
+                    )}
+                    {enabledSystemKeys.map(key => (
+                      <td key={key} className="border border-border p-2 align-top">
+                        <div 
+                          className="text-xs whitespace-pre-wrap break-words"
+                          dangerouslySetInnerHTML={{ __html: patient.systems[key as keyof typeof patient.systems] }}
+                        />
+                      </td>
+                    ))}
+                    {showNotesColumn && (
+                      <td className="border border-border p-2 align-top bg-amber-50/50">
+                        <div className="min-h-[80px] w-full relative">
+                          {[...Array(5)].map((_, i) => (
+                            <div key={i} className="border-b border-amber-200/60 h-[16px] w-full" />
+                          ))}
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -724,6 +870,15 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
               Print / Export Patient Data
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsFullPreview(true)}
+                className="gap-2"
+              >
+                <Fullscreen className="h-4 w-4" />
+                Full Preview
+              </Button>
               {onUpdatePatient && (
                 <Button
                   variant={isEditMode ? "default" : "outline"}
@@ -1060,14 +1215,16 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
                     </div>
                     
                     {showNotesColumn && (
-                      <div className="mt-4 p-3 bg-amber-50 rounded border border-amber-200">
+                      <div className="mt-4 p-3 bg-amber-50/50 rounded border border-amber-200">
                         <div className="text-xs font-bold text-amber-700 uppercase mb-1">Rounding Notes</div>
-                        <textarea
-                          value={patientNotes[patient.id] || ""}
-                          onChange={(e) => setPatientNotes(prev => ({ ...prev, [patient.id]: e.target.value }))}
-                          placeholder="Add notes for rounding..."
-                          className="w-full min-h-[60px] text-sm p-2 border-0 bg-transparent resize-y focus:outline-none"
-                        />
+                        <div className="min-h-[60px] w-full relative">
+                          {[...Array(4)].map((_, i) => (
+                            <div 
+                              key={i} 
+                              className="border-b border-amber-200/60 h-[14px] w-full"
+                            />
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1140,12 +1297,14 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
                     {showNotesColumn && (
                       <div className="mt-4">
                         <span className="font-bold text-sm text-amber-700 uppercase">Rounding Notes</span>
-                        <textarea
-                          value={patientNotes[patient.id] || ""}
-                          onChange={(e) => setPatientNotes(prev => ({ ...prev, [patient.id]: e.target.value }))}
-                          placeholder="Add notes for rounding..."
-                          className="mt-1 w-full min-h-[60px] text-sm p-3 bg-amber-50 border border-amber-200 rounded resize-y focus:outline-none focus:ring-1 focus:ring-amber-400"
-                        />
+                        <div className="mt-1 w-full min-h-[60px] p-3 bg-amber-50/50 border border-amber-200 rounded relative">
+                          {[...Array(4)].map((_, i) => (
+                            <div 
+                              key={i} 
+                              className="border-b border-amber-200/60 h-[14px] w-full"
+                            />
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
