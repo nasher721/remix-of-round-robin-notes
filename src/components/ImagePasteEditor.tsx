@@ -71,6 +71,38 @@ export const ImagePasteEditor = ({
     }
   }, [onChange]);
 
+  const handleBeforeInput = useCallback((e: InputEvent) => {
+    // Only intercept text insertions when change tracking is enabled
+    if (!changeTracking?.enabled || !e.data || e.inputType !== 'insertText') return;
+    
+    e.preventDefault();
+    
+    const markedHtml = changeTracking.wrapWithMarkup(e.data);
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    
+    const range = selection.getRangeAt(0);
+    range.deleteContents();
+    
+    const temp = document.createElement('div');
+    temp.innerHTML = markedHtml;
+    const fragment = document.createDocumentFragment();
+    while (temp.firstChild) {
+      fragment.appendChild(temp.firstChild);
+    }
+    range.insertNode(fragment);
+    
+    // Move cursor after inserted content
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    
+    if (editorRef.current) {
+      isInternalUpdate.current = true;
+      onChange(editorRef.current.innerHTML);
+    }
+  }, [changeTracking, onChange]);
+
   const handleInput = useCallback(() => {
     if (editorRef.current) {
       isInternalUpdate.current = true;
@@ -81,8 +113,6 @@ export const ImagePasteEditor = ({
       if (formattedHtml !== html) {
         // Save cursor position
         const selection = window.getSelection();
-        const range = selection?.getRangeAt(0);
-        const cursorOffset = range?.startOffset || 0;
         
         editorRef.current.innerHTML = formattedHtml;
         html = formattedHtml;
@@ -435,6 +465,7 @@ export const ImagePasteEditor = ({
         contentEditable
         className="p-2 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all prose prose-sm max-w-none"
         style={{ minHeight, fontSize: `${fontSize}px` }}
+        onBeforeInput={handleBeforeInput as unknown as React.FormEventHandler}
         onInput={handleInput}
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}
