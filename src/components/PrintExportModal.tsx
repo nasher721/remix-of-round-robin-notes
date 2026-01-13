@@ -88,7 +88,10 @@ const stripHtml = (html: string): string => {
 };
 
 export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient }: PrintExportModalProps) => {
-  const printRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLDivElement>(null);
+  const cardsRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const fullPreviewRef = useRef<HTMLDivElement>(null);
   const [expandedCell, setExpandedCell] = useState<ExpandedCell | null>(null);
   const [editingCell, setEditingCell] = useState<ExpandedCell | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -561,8 +564,26 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
   };
 
   const handlePrint = () => {
-    const printContent = printRef.current;
-    if (!printContent) return;
+    // Get the correct ref based on active tab or full preview mode
+    const getActiveRef = () => {
+      if (isFullPreview) return fullPreviewRef.current;
+      switch (activeTab) {
+        case 'table': return tableRef.current;
+        case 'cards': return cardsRef.current;
+        case 'list': return listRef.current;
+        default: return tableRef.current;
+      }
+    };
+    
+    const printContent = getActiveRef();
+    if (!printContent) {
+      toast({
+        title: "Print Error",
+        description: "Could not find content to print. Please try again.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
@@ -1019,7 +1040,7 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
         </div>
         
         {/* Full preview content */}
-        <div className="p-8 max-w-[1200px] mx-auto" ref={printRef}>
+        <div className="p-8 max-w-[1200px] mx-auto" ref={fullPreviewRef}>
           <div className="header flex justify-between items-center mb-6 border-b-2 border-primary pb-4">
             <div>
               <h1 className="text-2xl font-bold text-primary">🏥 Patient Rounding Report</h1>
@@ -1486,17 +1507,17 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
               }
             `}</style>
             <TabsContent value="table" className="m-0" forceMount style={{ display: activeTab === 'table' ? 'block' : 'none' }}>
-              <div ref={activeTab === 'table' ? printRef : undefined}>
+              <div ref={tableRef}>
                 <div className="header flex justify-between items-center mb-4 border-b-2 border-primary pb-3">
-                <div>
-                  <h1 className="font-bold text-primary" style={{ fontSize: `${printFontSize + 6}px` }}>🏥 Patient Rounding Report</h1>
-                  <div className="text-muted-foreground mt-1" style={{ fontSize: `${printFontSize - 1}px` }}>Comprehensive patient overview</div>
+                  <div>
+                    <h1 className="font-bold text-primary" style={{ fontSize: `${printFontSize + 6}px` }}>🏥 Patient Rounding Report</h1>
+                    <div className="text-muted-foreground mt-1" style={{ fontSize: `${printFontSize - 1}px` }}>Comprehensive patient overview</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-medium">{dateStr}</div>
+                    <div className="text-muted-foreground" style={{ fontSize: `${printFontSize - 1}px` }}>{timeStr} • {patients.length} patients</div>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <div className="font-medium">{dateStr}</div>
-                  <div className="text-muted-foreground" style={{ fontSize: `${printFontSize - 1}px` }}>{timeStr} • {patients.length} patients</div>
-                </div>
-              </div>
               
               <div className="text-muted-foreground mb-3 no-print bg-muted/30 p-2 rounded" style={{ fontSize: `${printFontSize - 1}px` }}>
                 💡 Click any cell to expand/collapse • {isEditMode && "Double-click to edit •"} Drag column edges to resize
@@ -1589,17 +1610,17 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
             </TabsContent>
 
             <TabsContent value="cards" className="m-0" forceMount style={{ display: activeTab === 'cards' ? 'block' : 'none' }}>
-              <div ref={activeTab === 'cards' ? printRef : undefined}>
+              <div ref={cardsRef}>
                 <div className="header flex justify-between items-center mb-4 border-b-2 border-primary pb-3">
-                <div>
-                  <h1 className="font-bold text-primary" style={{ fontSize: `${printFontSize + 6}px` }}>🏥 Patient Rounding Report</h1>
-                  <div className="text-muted-foreground mt-1" style={{ fontSize: `${printFontSize - 1}px` }}>Card-based patient summary</div>
+                  <div>
+                    <h1 className="font-bold text-primary" style={{ fontSize: `${printFontSize + 6}px` }}>🏥 Patient Rounding Report</h1>
+                    <div className="text-muted-foreground mt-1" style={{ fontSize: `${printFontSize - 1}px` }}>Card-based patient summary</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-medium">{dateStr}</div>
+                    <div className="text-muted-foreground" style={{ fontSize: `${printFontSize - 1}px` }}>{timeStr} • {patients.length} patients</div>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <div className="font-medium">{dateStr}</div>
-                  <div className="text-muted-foreground" style={{ fontSize: `${printFontSize - 1}px` }}>{timeStr} • {patients.length} patients</div>
-                </div>
-              </div>
               
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {patients.map((patient, idx) => (
@@ -1715,7 +1736,7 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
             </TabsContent>
 
             <TabsContent value="list" className="m-0" forceMount style={{ display: activeTab === 'list' ? 'block' : 'none' }}>
-              <div ref={activeTab === 'list' ? printRef : undefined}>
+              <div ref={listRef}>
                 <div className="header flex justify-between items-center mb-4 border-b-2 border-primary pb-3">
                   <div>
                     <h1 className="font-bold text-primary" style={{ fontSize: `${printFontSize + 6}px` }}>🏥 Patient Rounding Report</h1>
