@@ -273,8 +273,6 @@ export const usePatients = () => {
     bed: string;
     clinicalSummary: string;
     intervalEvents: string;
-    imaging?: string;
-    labs?: string;
     systems?: PatientSystems;
   }>) => {
     if (!user) return;
@@ -295,8 +293,8 @@ export const usePatients = () => {
             bed: p.bed,
             clinical_summary: p.clinicalSummary,
             interval_events: p.intervalEvents || "",
-            imaging: p.imaging || "",
-            labs: p.labs || "",
+            imaging: "",
+            labs: "",
             systems: systemsToInsert as unknown as Json,
             collapsed: false,
           }])

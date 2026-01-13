@@ -27,8 +27,6 @@ interface ParsedPatient {
   handoffSummary: string;
   intervalEvents: string;
   bedStatus: string;
-  imaging: string;
-  labs: string;
   systems: PatientSystems;
 }
 
@@ -184,12 +182,6 @@ function deduplicatePatientsByBed(patients: ParsedPatient[]): ParsedPatient[] {
           ? patient.intervalEvents
           : existing.intervalEvents,
         bedStatus: patient.bedStatus || existing.bedStatus,
-        imaging: (patient.imaging?.length || 0) > (existing.imaging?.length || 0)
-          ? patient.imaging
-          : existing.imaging,
-        labs: (patient.labs?.length || 0) > (existing.labs?.length || 0)
-          ? patient.labs
-          : existing.labs,
         systems: {
           neuro: patient.systems?.neuro || existing.systems?.neuro || '',
           cv: patient.systems?.cv || existing.systems?.cv || '',
@@ -260,19 +252,24 @@ For each patient, extract:
 - handoffSummary: The main handoff summary text (clinical overview, history, plan - but NOT system-specific content or "What we did on rounds")
 - intervalEvents: Content from "What we did on rounds" section (or "Rounds update", "Events", "Daily update"). Do NOT include the section header.
 - bedStatus: Any bed status information
-- imaging: Any imaging/radiology information (CT, MRI, X-ray, ultrasound results or pending studies)
-- labs: Any laboratory results or pending labs
-- systems: Object containing system-based review content. Parse content into appropriate systems:
-  - neuro: Neurological (mental status, neuro exams, seizures, sedation, pain)
-  - cv: Cardiovascular (heart, BP, rhythms, pressors, fluids, cardiac)
-  - resp: Respiratory (lungs, ventilator, O2, breathing, pulmonary)
-  - renalGU: Renal/GU (kidneys, creatinine, urine, dialysis, Foley, electrolytes)
-  - gi: GI/Nutrition (abdomen, bowels, diet, TPN, liver, GI bleed)
-  - endo: Endocrine (glucose, insulin, thyroid, steroids)
-  - heme: Hematology (blood counts, anticoagulation, transfusions, bleeding)
-  - infectious: Infectious Disease (cultures, antibiotics, fever, infection)
-  - skinLines: Skin/Lines (IV access, wounds, pressure ulcers, drains)
-  - dispo: Disposition (discharge planning, goals of care, family)
+- systems: Object containing system-based review content. Parse ALL content into appropriate systems:
+  - neuro: Neurological (mental status, neuro exams, seizures, sedation, pain, ALSO include brain/spine imaging like CT head, MRI brain)
+  - cv: Cardiovascular (heart, BP, rhythms, pressors, fluids, cardiac, ALSO include cardiac labs like troponin, BNP and cardiac imaging like echo, EKG)
+  - resp: Respiratory (lungs, ventilator, O2, breathing, pulmonary, ALSO include chest imaging like CXR, CT chest and ABGs)
+  - renalGU: Renal/GU (kidneys, creatinine, urine, dialysis, Foley, electrolytes, ALSO include renal labs like BMP, Cr, BUN, electrolytes and renal imaging)
+  - gi: GI/Nutrition (abdomen, bowels, diet, TPN, liver, GI bleed, ALSO include liver labs like LFTs, lipase and abdominal imaging)
+  - endo: Endocrine (glucose, insulin, thyroid, steroids, ALSO include endocrine labs like A1c, TSH, cortisol)
+  - heme: Hematology (blood counts, anticoagulation, transfusions, bleeding, ALSO include heme labs like CBC, coags, INR)
+  - infectious: Infectious Disease (cultures, antibiotics, fever, infection, ALSO include ID labs like WBC, procalcitonin, cultures and relevant imaging)
+  - skinLines: Skin/Lines (IV access, wounds, pressure ulcers, drains, central lines, PICC, arterial lines)
+  - dispo: Disposition (discharge planning, goals of care, family discussions, social work)
+
+IMPORTANT: Do NOT create separate imaging or labs fields. Instead, include all imaging and lab information within the relevant system section where it clinically belongs. For example:
+- CT head results go in "neuro"
+- Chest X-ray and ABG go in "resp"
+- CBC and INR go in "heme"
+- BMP and creatinine go in "renalGU"
+- Troponin and echo go in "cv"
 
 FORMATTING PRESERVATION:
 - Preserve line breaks within each field using \\n
@@ -293,8 +290,6 @@ Return ONLY valid JSON in this exact format:
       "handoffSummary": "string",
       "intervalEvents": "string",
       "bedStatus": "string",
-      "imaging": "string",
-      "labs": "string",
       "systems": {
         "neuro": "string",
         "cv": "string",
@@ -326,7 +321,7 @@ SYSTEM MAPPING GUIDANCE:
 - "Pulm" or "Pulmonary" maps to "resp"
 - "ID" or "Infectious Disease" maps to "infectious"
 - "Access" or "Lines" maps to "skinLines"
-- If no system-specific content found, leave systems fields empty`;
+- Include relevant imaging and labs WITHIN each system section, not separately`;
 
     // Build message content based on whether we have images or text
     let userContent: any;
@@ -458,8 +453,6 @@ SYSTEM MAPPING GUIDANCE:
           handoffSummary: cleanPatientText(patient.handoffSummary),
           intervalEvents: cleanPatientText(patient.intervalEvents),
           bedStatus: cleanPatientText(patient.bedStatus),
-          imaging: cleanPatientText(patient.imaging || ''),
-          labs: cleanPatientText(patient.labs || ''),
           systems: {
             neuro: cleanPatientText(systems.neuro || ''),
             cv: cleanPatientText(systems.cv || ''),

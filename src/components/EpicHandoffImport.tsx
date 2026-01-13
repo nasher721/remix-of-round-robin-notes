@@ -31,8 +31,6 @@ interface ParsedPatient {
   handoffSummary: string;
   intervalEvents: string;
   bedStatus: string;
-  imaging: string;
-  labs: string;
   systems: PatientSystems;
 }
 
@@ -43,8 +41,6 @@ interface EpicHandoffImportProps {
     bed: string;
     clinicalSummary: string;
     intervalEvents: string;
-    imaging: string;
-    labs: string;
     systems: PatientSystems;
   }>) => Promise<void>;
 }
@@ -370,8 +366,6 @@ export const EpicHandoffImport = ({ existingBeds, onImportPatients }: EpicHandof
         bed: p.bed,
         clinicalSummary: p.handoffSummary,
         intervalEvents: p.intervalEvents || '',
-        imaging: p.imaging || '',
-        labs: p.labs || '',
         systems: p.systems || defaultSystems,
       }));
 
