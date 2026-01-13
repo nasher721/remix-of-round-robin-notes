@@ -6,8 +6,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { useDictation } from "@/hooks/useDictation";
+import { AudioWaveform } from "./AudioWaveform";
 
 interface DictationButtonProps {
   onTranscript: (text: string) => void;
@@ -26,7 +32,7 @@ export const DictationButton = ({
   variant = "ghost",
   enhanceMedical = true,
 }: DictationButtonProps) => {
-  const { isRecording, isProcessing, toggleRecording } = useDictation({
+  const { isRecording, isProcessing, toggleRecording, audioStream } = useDictation({
     onTranscript,
     enhanceMedical,
   });
@@ -40,37 +46,78 @@ export const DictationButton = ({
   const buttonSize = size === "sm" ? "h-7 w-7 p-0" : size === "lg" ? "h-10 w-10 p-0" : "h-8 w-8 p-0";
   const iconSize = size === "sm" ? "h-3.5 w-3.5" : size === "lg" ? "h-5 w-5" : "h-4 w-4";
 
+  const buttonContent = (
+    <Button
+      type="button"
+      variant={isRecording ? "destructive" : variant}
+      size="icon"
+      onClick={handleClick}
+      disabled={disabled || isProcessing}
+      className={cn(
+        buttonSize,
+        isRecording && "animate-pulse",
+        className
+      )}
+    >
+      {isProcessing ? (
+        <Loader2 className={cn(iconSize, "animate-spin")} />
+      ) : isRecording ? (
+        <MicOff className={iconSize} />
+      ) : (
+        <Mic className={iconSize} />
+      )}
+    </Button>
+  );
+
+  // When recording, show popover with waveform
+  if (isRecording) {
+    return (
+      <Popover open={isRecording}>
+        <PopoverTrigger asChild>
+          {buttonContent}
+        </PopoverTrigger>
+        <PopoverContent 
+          side="top" 
+          align="center"
+          className="w-auto p-2 bg-destructive/10 border-destructive/30"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
+              <span className="text-xs font-medium text-destructive">Recording</span>
+            </div>
+            <div className="w-px h-4 bg-destructive/30" />
+            <AudioWaveform 
+              stream={audioStream}
+              isActive={isRecording}
+              color="hsl(var(--destructive))"
+              barCount={7}
+            />
+            <div className="w-px h-4 bg-destructive/30" />
+            <button
+              onClick={handleClick}
+              className="text-xs text-destructive hover:text-destructive/80 font-medium"
+            >
+              Stop
+            </button>
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  }
+
+  // When not recording, show tooltip
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button
-            type="button"
-            variant={isRecording ? "destructive" : variant}
-            size="icon"
-            onClick={handleClick}
-            disabled={disabled || isProcessing}
-            className={cn(
-              buttonSize,
-              isRecording && "animate-pulse",
-              className
-            )}
-          >
-            {isProcessing ? (
-              <Loader2 className={cn(iconSize, "animate-spin")} />
-            ) : isRecording ? (
-              <MicOff className={iconSize} />
-            ) : (
-              <Mic className={iconSize} />
-            )}
-          </Button>
+          {buttonContent}
         </TooltipTrigger>
         <TooltipContent side="bottom">
           <p>
             {isProcessing 
               ? "Processing..." 
-              : isRecording 
-              ? "Stop dictation" 
               : "Start medical dictation"}
           </p>
         </TooltipContent>

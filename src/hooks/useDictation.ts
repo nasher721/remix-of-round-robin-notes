@@ -15,6 +15,7 @@ interface UseDictationReturn {
   toggleRecording: () => Promise<void>;
   transcript: string | null;
   error: string | null;
+  audioStream: MediaStream | null;
 }
 
 export const useDictation = (options: UseDictationOptions = {}): UseDictationReturn => {
@@ -24,6 +25,7 @@ export const useDictation = (options: UseDictationOptions = {}): UseDictationRet
   const [isProcessing, setIsProcessing] = useState(false);
   const [transcript, setTranscript] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -48,6 +50,7 @@ export const useDictation = (options: UseDictationOptions = {}): UseDictationRet
       });
       
       streamRef.current = stream;
+      setAudioStream(stream);
       chunksRef.current = [];
       
       // Determine best supported format
@@ -188,6 +191,7 @@ export const useDictation = (options: UseDictationOptions = {}): UseDictationRet
         if (streamRef.current) {
           streamRef.current.getTracks().forEach(track => track.stop());
           streamRef.current = null;
+          setAudioStream(null);
         }
       };
       
@@ -211,5 +215,6 @@ export const useDictation = (options: UseDictationOptions = {}): UseDictationRet
     toggleRecording,
     transcript,
     error,
+    audioStream,
   };
 };
