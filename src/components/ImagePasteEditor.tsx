@@ -1,12 +1,13 @@
-import { useRef, useCallback, useEffect, useState } from "react";
+import { useRef, useCallback, useEffect, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Bold, Italic, List, ImageIcon, X, Loader2 } from "lucide-react";
+import { Bold, Italic, List, ImageIcon, Loader2, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import type { AutoText } from "@/types/autotext";
 import { defaultAutotexts, medicalDictionary } from "@/data/autotexts";
+import { ImageLightbox } from "./ImageLightbox";
 
 interface ImagePasteEditorProps {
   value: string;
@@ -17,6 +18,24 @@ interface ImagePasteEditorProps {
   autotexts?: AutoText[];
   fontSize?: number;
 }
+
+// Extract image URLs from HTML content
+const extractImageUrls = (html: string): string[] => {
+  const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+  const urls: string[] = [];
+  let match;
+  while ((match = imgRegex.exec(html)) !== null) {
+    urls.push(match[1]);
+  }
+  return urls;
+};
+
+// Apply underline formatting to text between # and :
+const applyUnderlineFormatting = (html: string): string => {
+  // Match #text: pattern but not inside HTML tags
+  const regex = /#([^:#<>]+):/g;
+  return html.replace(regex, '<u>#$1:</u>');
+};
 
 export const ImagePasteEditor = ({ 
   value, 
@@ -30,8 +49,13 @@ export const ImagePasteEditor = ({
   const editorRef = useRef<HTMLDivElement>(null);
   const isInternalUpdate = useRef(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const { user } = useAuth();
   const { toast } = useToast();
+
+  // Extract images from current value
+  const imageUrls = useMemo(() => extractImageUrls(value), [value]);
 
   const execCommand = useCallback((command: string, value?: string) => {
     document.execCommand(command, false, value);
@@ -45,7 +69,30 @@ export const ImagePasteEditor = ({
   const handleInput = useCallback(() => {
     if (editorRef.current) {
       isInternalUpdate.current = true;
-      onChange(editorRef.current.innerHTML);
+      let html = editorRef.current.innerHTML;
+      
+      // Apply underline formatting for #text: pattern
+      const formattedHtml = applyUnderlineFormatting(html);
+      if (formattedHtml !== html) {
+        // Save cursor position
+        const selection = window.getSelection();
+        const range = selection?.getRangeAt(0);
+        const cursorOffset = range?.startOffset || 0;
+        
+        editorRef.current.innerHTML = formattedHtml;
+        html = formattedHtml;
+        
+        // Restore cursor to end
+        if (selection && editorRef.current.childNodes.length > 0) {
+          const newRange = document.createRange();
+          newRange.selectNodeContents(editorRef.current);
+          newRange.collapse(false);
+          selection.removeAllRanges();
+          selection.addRange(newRange);
+        }
+      }
+      
+      onChange(html);
     }
   }, [onChange]);
 
@@ -248,6 +295,11 @@ export const ImagePasteEditor = ({
     }
   }, [autotexts]);
 
+  const openLightbox = (index: number) => {
+    setLightboxIndex(index);
+    setLightboxOpen(true);
+  };
+
   // Sync external value changes
   useEffect(() => {
     if (isInternalUpdate.current) {
@@ -317,6 +369,40 @@ export const ImagePasteEditor = ({
           </div>
         )}
       </div>
+
+      {/* Thumbnail Gallery */}
+      {imageUrls.length > 0 && (
+        <div className="p-2 border-b border-border bg-muted/30">
+          <div className="flex items-center gap-1 mb-1.5">
+            <Maximize2 className="h-3 w-3 text-muted-foreground" />
+            <span className="text-[10px] text-muted-foreground font-medium">
+              {imageUrls.length} image{imageUrls.length > 1 ? 's' : ''} - Click to enlarge
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {imageUrls.map((url, index) => (
+              <button
+                key={`${url}-${index}`}
+                type="button"
+                onClick={() => openLightbox(index)}
+                className="relative group rounded-md overflow-hidden border-2 border-border hover:border-primary transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <img
+                  src={url}
+                  alt={`Thumbnail ${index + 1}`}
+                  className="w-16 h-16 object-cover"
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                  <Maximize2 className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+                <span className="absolute bottom-0 right-0 bg-black/60 text-white text-[9px] px-1 rounded-tl">
+                  {index + 1}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       
       {/* Editor */}
       <div
@@ -331,6 +417,14 @@ export const ImagePasteEditor = ({
         onDragOver={handleDragOver}
         data-placeholder={placeholder}
         suppressContentEditableWarning
+      />
+
+      {/* Lightbox */}
+      <ImageLightbox
+        images={imageUrls}
+        initialIndex={lightboxIndex}
+        open={lightboxOpen}
+        onOpenChange={setLightboxOpen}
       />
     </div>
   );
