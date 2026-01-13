@@ -268,6 +268,8 @@ const IndexContent = () => {
                     <MobilePatientList
                       patients={filteredPatients}
                       onPatientSelect={setSelectedPatient}
+                      onPatientDelete={handleRemovePatient}
+                      onPatientDuplicate={handleDuplicatePatient}
                       searchQuery={searchQuery}
                     />
                   </div>
