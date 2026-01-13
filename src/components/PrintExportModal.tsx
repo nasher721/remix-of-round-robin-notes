@@ -644,8 +644,27 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
             /* Override inline styles on all content inside cells */
             td *, th * { font-size: inherit !important; font-family: inherit !important; }
             tr:nth-child(even) td { background: #f8fafc; }
+            /* Patient row separators */
+            tr { border-bottom: 2px solid #3b82f6 !important; }
+            tr:last-child { border-bottom: none !important; }
             .patient-name { font-weight: 700; color: #1e40af; font-size: ${patientNameSize}px !important; }
             .bed { color: #6b7280; font-size: ${smallerFontSize}px !important; display: block; margin-top: 2px; }
+            /* Section styling */
+            .section-box { 
+              background: #f8fafc; 
+              padding: 6px 8px; 
+              border-radius: 4px; 
+              border-left: 3px solid #3b82f6; 
+              margin: 2px 0;
+            }
+            .section-label { 
+              font-weight: 700; 
+              color: #1e40af; 
+              text-transform: uppercase; 
+              font-size: ${Math.max(baseFontSize - 2, 7)}px !important; 
+              margin-bottom: 4px;
+              letter-spacing: 0.5px;
+            }
             .content, .content * { 
               white-space: pre-wrap !important;
               word-break: break-word;
@@ -721,9 +740,15 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
               margin-bottom: 2px;
             }
             .list-view .patient-item { 
-              border-bottom: 2px solid #e5e7eb; 
-              padding: 8px 0; 
+              border-bottom: 3px solid #1e40af; 
+              padding: 12px 0; 
+              margin-bottom: 8px;
               page-break-inside: avoid; 
+            }
+            /* Patient divider for card/list views */
+            .patient-divider {
+              border-top: 2px solid #3b82f6;
+              margin: 12px 0;
             }
             .empty { color: #9ca3af; font-style: italic; }
             .footer {
@@ -1434,7 +1459,10 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
                   </thead>
                   <tbody>
                     {patients.map((patient, idx) => (
-                      <tr key={patient.id} className={cn("border-b", idx % 2 === 0 ? "bg-white" : "bg-muted/20")}>
+                      <tr key={patient.id} className={cn(
+                        idx % 2 === 0 ? "bg-white" : "bg-muted/20",
+                        "border-b-2 border-primary/30"
+                      )} style={{ borderBottom: '2px solid hsl(var(--primary) / 0.4)' }}>
                         {isColumnEnabled("patient") && (
                           <td className="border border-border p-2 align-top">
                             <div className="font-bold text-primary" style={{ fontSize: `${printFontSize + 1}px` }}>{patient.name || 'Unnamed'}</div>
@@ -1483,9 +1511,13 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
                 </div>
               </div>
               
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {patients.map((patient) => (
-                  <div key={patient.id} className="border-2 border-primary rounded-lg p-4 bg-card shadow-sm break-inside-avoid">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {patients.map((patient, idx) => (
+                  <div key={patient.id} className="border-2 border-primary rounded-lg p-4 bg-card shadow-md break-inside-avoid relative">
+                    {/* Patient number badge */}
+                    <div className="absolute -top-3 -left-2 bg-primary text-primary-foreground rounded-full w-7 h-7 flex items-center justify-center font-bold text-sm shadow">
+                      {idx + 1}
+                    </div>
                     <h3 className="font-bold border-b-2 border-primary pb-2 mb-4 text-primary" style={{ fontSize: `${printFontSize + 2}px` }}>
                       {patient.name || 'Unnamed'} {patient.bed && `• Bed ${patient.bed}`}
                     </h3>
@@ -1577,9 +1609,9 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
                 </div>
               </div>
               
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {patients.map((patient, index) => (
-                  <div key={patient.id} className="border-b-2 border-muted pb-4 break-inside-avoid">
+                  <div key={patient.id} className="border-b-4 border-primary/40 pb-6 mb-2 break-inside-avoid">
                     <div className="flex items-baseline gap-3 mb-3 bg-primary/10 p-2 rounded">
                       <span className="font-bold text-primary" style={{ fontSize: `${printFontSize + 4}px` }}>{index + 1}.</span>
                       <span className="font-bold" style={{ fontSize: `${printFontSize + 4}px` }}>{patient.name || 'Unnamed'}</span>
