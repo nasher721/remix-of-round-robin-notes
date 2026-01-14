@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { FileText, Calendar, Copy, Trash2, ChevronDown, ChevronUp, Clock, ImageIcon, TestTube } from "lucide-react";
+import { FileText, Calendar, Copy, Trash2, ChevronDown, ChevronUp, Clock, ImageIcon, TestTube, Sparkles, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { RichTextEditor } from "./RichTextEditor";
 import { ImagePasteEditor } from "./ImagePasteEditor";
@@ -10,7 +10,7 @@ import { defaultAutotexts } from "@/data/autotexts";
 import type { Patient, PatientSystems } from "@/types/patient";
 import { SYSTEM_LABELS, SYSTEM_ICONS } from "@/constants/systems";
 import { usePatientTodos } from "@/hooks/usePatientTodos";
-
+import { useIntervalEventsGenerator } from "@/hooks/useIntervalEventsGenerator";
 interface PatientCardProps {
   patient: Patient;
   onUpdate: (id: string, field: string, value: unknown) => void;
@@ -39,6 +39,22 @@ export const PatientCard = ({
 }: PatientCardProps) => {
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const { todos, generating, addTodo, toggleTodo, deleteTodo, generateTodos } = usePatientTodos(patient.id);
+  const { generateIntervalEvents, isGenerating: isGeneratingEvents } = useIntervalEventsGenerator();
+
+  const handleGenerateIntervalEvents = async () => {
+    const result = await generateIntervalEvents(
+      patient.systems,
+      patient.intervalEvents,
+      patient.name
+    );
+    if (result) {
+      // Append to existing interval events with a newline separator
+      const newValue = patient.intervalEvents 
+        ? `${patient.intervalEvents}\n\n${result}`
+        : result;
+      onUpdate(patient.id, 'intervalEvents', newValue);
+    }
+  };
 
   const addTimestamp = (field: string) => {
     const timestamp = new Date().toLocaleString('en-US', { 
@@ -208,6 +224,21 @@ export const PatientCard = ({
                 )}
               </div>
               <div className="flex gap-1 no-print">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleGenerateIntervalEvents}
+                  disabled={isGeneratingEvents}
+                  className="h-7 px-2 text-primary hover:text-primary hover:bg-primary/10"
+                  title="Generate from Systems (AI)"
+                >
+                  {isGeneratingEvents ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3 w-3" />
+                  )}
+                  <span className="ml-1 text-xs">Generate</span>
+                </Button>
                 <PatientTodos
                   todos={todos}
                   section="interval_events"
