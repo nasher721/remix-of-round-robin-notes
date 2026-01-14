@@ -1,4 +1,5 @@
 import type { Patient, PatientSystems } from "@/types/patient";
+import type { PatientTodo } from "@/types/todo";
 import { SYSTEM_LABELS_SHORT, SYSTEM_KEYS } from "@/constants/systems";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,7 +26,9 @@ import {
   GripVertical,
   Fullscreen,
   X,
-  Type
+  Type,
+  CheckSquare,
+  Square
 } from "lucide-react";
 import { useRef, useState, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -49,10 +52,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+export interface PatientTodosMap {
+  [patientId: string]: PatientTodo[];
+}
+
 interface PrintExportModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   patients: Patient[];
+  patientTodos?: PatientTodosMap;
   onUpdatePatient?: (id: string, field: string, value: string) => void;
 }
 
@@ -73,6 +81,7 @@ const defaultColumns: ColumnConfig[] = [
   { key: "imaging", label: "Imaging", enabled: true },
   { key: "labs", label: "Labs", enabled: true },
   ...systemKeys.map(key => ({ key: `systems.${key}`, label: systemLabels[key], enabled: true })),
+  { key: "todos", label: "Todos", enabled: true },
   { key: "notes", label: "Notes (blank for rounding)", enabled: false },
 ];
 
@@ -118,7 +127,7 @@ const cleanInlineStyles = (html: string): string => {
   return doc.body.innerHTML;
 };
 
-export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient }: PrintExportModalProps) => {
+export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = {}, onUpdatePatient }: PrintExportModalProps) => {
   const tableRef = useRef<HTMLDivElement>(null);
   const cardsRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -253,6 +262,26 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
   );
 
   const showNotesColumn = columns.find(c => c.key === "notes")?.enabled ?? false;
+  const showTodosColumn = columns.find(c => c.key === "todos")?.enabled ?? true;
+
+  // Helper to get todos for a patient
+  const getPatientTodos = (patientId: string) => patientTodos[patientId] || [];
+  
+  // Format todos for display
+  const formatTodosForDisplay = (todos: PatientTodo[]) => {
+    if (todos.length === 0) return '';
+    return todos.map(t => `${t.completed ? '☑' : '☐'} ${t.content}`).join('\n');
+  };
+  
+  const formatTodosHtml = (todos: PatientTodo[]) => {
+    if (todos.length === 0) return '<span class="empty">No todos</span>';
+    return `<ul class="todos-list">${todos.map(t => 
+      `<li class="todo-item ${t.completed ? 'completed' : ''}">
+        <span class="todo-checkbox">${t.completed ? '☑' : '☐'}</span>
+        <span class="todo-content">${t.content}</span>
+      </li>`
+    ).join('')}</ul>`;
+  };
 
   const toggleColumn = (key: string) => {
     setColumns(prev => {
@@ -362,6 +391,11 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
         }
       });
       
+      if (showTodosColumn) {
+        const todos = getPatientTodos(patient.id);
+        row["Todos"] = formatTodosForDisplay(todos);
+      }
+      
       if (isColumnEnabled("notes")) {
         row["Notes"] = patientNotes[patient.id] || "";
       }
@@ -420,6 +454,7 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
     systemKeys.forEach(key => {
       if (isColumnEnabled(`systems.${key}`)) headers.push(systemLabels[key]);
     });
+    if (showTodosColumn) headers.push("Todos");
     if (isColumnEnabled("notes")) headers.push("Notes");
 
     // Table data - show full text, let autoTable handle wrapping
@@ -447,6 +482,10 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
           row.push(stripHtml(patient.systems[key as keyof typeof patient.systems]));
         }
       });
+      if (showTodosColumn) {
+        const todos = getPatientTodos(patient.id);
+        row.push(formatTodosForDisplay(todos));
+      }
       if (isColumnEnabled("notes")) {
         row.push(patientNotes[patient.id] || "");
       }
@@ -570,6 +609,32 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
         });
       }
       
+      // Todos
+      if (showTodosColumn) {
+        const todos = getPatientTodos(patient.id);
+        if (todos.length > 0) {
+          if (yPos > 170) {
+            doc.addPage();
+            yPos = 15;
+          }
+          doc.setFont("helvetica", "bold");
+          doc.text("Todos:", 14, yPos);
+          yPos += 5;
+          doc.setFont("helvetica", "normal");
+          todos.forEach(todo => {
+            const todoText = `${todo.completed ? '☑' : '☐'} ${todo.content}`;
+            const todoLines = doc.splitTextToSize(todoText, 270);
+            doc.text(todoLines, 14, yPos);
+            yPos += todoLines.length * 4 + 2;
+            
+            if (yPos > 190) {
+              doc.addPage();
+              yPos = 15;
+            }
+          });
+        }
+      }
+      
       // Notes
       if (isColumnEnabled("notes") && patientNotes[patient.id]) {
         if (yPos > 170) {
@@ -624,6 +689,9 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
       enabledSystemKeys.forEach(key => {
         tableHeaders += `<th style="width: ${columnWidths.systems}px;">${systemLabels[key]}</th>`;
       });
+      if (showTodosColumn) {
+        tableHeaders += `<th class="todos-header" style="width: ${columnWidths.notes}px;">Todos</th>`;
+      }
       if (showNotesColumn) {
         tableHeaders += `<th class="notes-header" style="width: ${columnWidths.notes}px;">Notes</th>`;
       }
@@ -653,6 +721,10 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
         enabledSystemKeys.forEach(key => {
           row += `<td class="content-cell system-cell">${cleanInlineStyles(patient.systems[key as keyof typeof patient.systems]) || ''}</td>`;
         });
+        if (showTodosColumn) {
+          const todos = getPatientTodos(patient.id);
+          row += `<td class="content-cell todos-cell">${formatTodosHtml(todos)}</td>`;
+        }
         if (showNotesColumn) {
           row += `<td class="notes-cell">
             <div class="notes-lines">
@@ -735,6 +807,18 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
           });
           systemsGrid += '</div>';
           cardContent += systemsGrid;
+        }
+        
+        if (showTodosColumn) {
+          const todos = getPatientTodos(patient.id);
+          if (todos.length > 0) {
+            cardContent += `
+              <div class="section section-todos">
+                <div class="section-header todos-header">Todos</div>
+                <div class="section-body todos-body">${formatTodosHtml(todos)}</div>
+              </div>
+            `;
+          }
         }
         
         if (showNotesColumn) {
@@ -827,6 +911,18 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
           });
           systemsHTML += '</div></div>';
           sections += systemsHTML;
+        }
+        
+        if (showTodosColumn) {
+          const todos = getPatientTodos(patient.id);
+          if (todos.length > 0) {
+            sections += `
+              <div class="section section-todos">
+                <div class="section-header todos-header">Todos</div>
+                <div class="section-body todos-body">${formatTodosHtml(todos)}</div>
+              </div>
+            `;
+          }
         }
         
         if (showNotesColumn) {
@@ -1071,6 +1167,38 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
             .labs-body { background: #f0fdf4 !important; }
             .notes-header { background: #f59e0b !important; }
             .notes-body { background: #fffbeb !important; padding: 8px !important; }
+            .todos-header { background: #8b5cf6 !important; }
+            .todos-body { background: #f5f3ff !important; padding: 8px !important; }
+            .todos-cell { background: #f5f3ff; }
+            
+            /* Todo list styles */
+            .todos-list {
+              list-style: none;
+              margin: 0;
+              padding: 0;
+            }
+            .todo-item {
+              display: flex;
+              align-items: flex-start;
+              gap: 6px;
+              padding: 3px 0;
+              border-bottom: 1px solid #e5e7eb;
+            }
+            .todo-item:last-child {
+              border-bottom: none;
+            }
+            .todo-item.completed {
+              text-decoration: line-through;
+              color: #9ca3af;
+            }
+            .todo-checkbox {
+              flex-shrink: 0;
+              font-size: ${baseFontSize}px;
+            }
+            .todo-content {
+              flex: 1;
+              font-size: ${baseFontSize}px;
+            }
             
             .systems-grid {
               display: grid;
@@ -1585,6 +1713,24 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
                   </div>
                 )}
                 
+                {showTodosColumn && getPatientTodos(patient.id).length > 0 && (
+                  <div className="border-2 border-violet-400 rounded-lg overflow-hidden">
+                    <div className="bg-violet-500 text-white font-bold uppercase px-3 py-2" style={{ fontSize: `${printFontSize + 1}px`, letterSpacing: '0.5px' }}>
+                      Todos
+                    </div>
+                    <div className="p-3 bg-violet-50">
+                      <ul className="space-y-1">
+                        {getPatientTodos(patient.id).map(todo => (
+                          <li key={todo.id} className={cn("flex items-start gap-2", todo.completed && "line-through text-muted-foreground")}>
+                            {todo.completed ? <CheckSquare className="h-4 w-4 mt-0.5 text-green-500" /> : <Square className="h-4 w-4 mt-0.5 text-muted-foreground" />}
+                            <span style={{ fontSize: `${printFontSize}px` }}>{todo.content}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+                
                 {showNotesColumn && (
                   <div className="border-2 border-amber-400 rounded-lg overflow-hidden">
                     <div className="bg-amber-500 text-white font-bold uppercase px-3 py-2" style={{ fontSize: `${printFontSize + 1}px`, letterSpacing: '0.5px' }}>
@@ -1705,6 +1851,24 @@ export const PrintExportModal = ({ open, onOpenChange, patients, onUpdatePatient
                         </div>
                       );
                     })}
+                  </div>
+                </div>
+              )}
+              
+              {showTodosColumn && getPatientTodos(patient.id).length > 0 && (
+                <div className="border-2 border-violet-400 rounded-lg overflow-hidden">
+                  <div className="bg-violet-500 text-white font-bold uppercase px-3 py-2" style={{ fontSize: `${printFontSize + 1}px`, letterSpacing: '0.5px' }}>
+                    Todos
+                  </div>
+                  <div className="p-3 bg-violet-50">
+                    <ul className="space-y-1">
+                      {getPatientTodos(patient.id).map(todo => (
+                        <li key={todo.id} className={cn("flex items-start gap-2", todo.completed && "line-through text-muted-foreground")}>
+                          {todo.completed ? <CheckSquare className="h-4 w-4 mt-0.5 text-green-500" /> : <Square className="h-4 w-4 mt-0.5 text-muted-foreground" />}
+                          <span style={{ fontSize: `${printFontSize}px` }}>{todo.content}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 </div>
               )}
