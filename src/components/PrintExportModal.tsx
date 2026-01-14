@@ -659,6 +659,317 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
     });
   };
 
+  // Export to TXT - plain text format
+  const handleExportTXT = () => {
+    let content = `PATIENT ROUNDING REPORT\n`;
+    content += `Generated: ${new Date().toLocaleString()}\n`;
+    content += `Total Patients: ${patients.length}\n`;
+    content += `${'='.repeat(60)}\n\n`;
+
+    patients.forEach((patient, index) => {
+      content += `${'─'.repeat(60)}\n`;
+      content += `PATIENT ${index + 1}: ${patient.name || 'Unnamed'}\n`;
+      content += `Bed/Room: ${patient.bed || 'N/A'}\n`;
+      content += `${'─'.repeat(60)}\n\n`;
+
+      if (isColumnEnabled("clinicalSummary") && patient.clinicalSummary) {
+        content += `CLINICAL SUMMARY:\n${stripHtml(patient.clinicalSummary)}\n\n`;
+      }
+      if (isColumnEnabled("intervalEvents") && patient.intervalEvents) {
+        content += `INTERVAL EVENTS:\n${stripHtml(patient.intervalEvents)}\n\n`;
+      }
+      if (isColumnEnabled("imaging") && patient.imaging) {
+        content += `IMAGING:\n${stripHtml(patient.imaging)}\n\n`;
+      }
+      if (isColumnEnabled("labs") && patient.labs) {
+        content += `LABS:\n${stripHtml(patient.labs)}\n\n`;
+      }
+
+      const enabledSystems = getEnabledSystemKeys();
+      if (enabledSystems.length > 0) {
+        content += `SYSTEMS REVIEW:\n`;
+        enabledSystems.forEach(key => {
+          const value = patient.systems[key as keyof typeof patient.systems];
+          if (value) {
+            content += `  ${systemLabels[key]}: ${stripHtml(value)}\n`;
+          }
+        });
+        content += `\n`;
+      }
+
+      if (showTodosColumn) {
+        const todos = getPatientTodos(patient.id);
+        if (todos.length > 0) {
+          content += `TODOS:\n`;
+          todos.forEach(todo => {
+            content += `  ${todo.completed ? '[x]' : '[ ]'} ${todo.content}\n`;
+          });
+          content += `\n`;
+        }
+      }
+
+      if (isColumnEnabled("notes") && patientNotes[patient.id]) {
+        content += `NOTES:\n${patientNotes[patient.id]}\n\n`;
+      }
+
+      content += `\n`;
+    });
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const fileName = `patient-rounding-${new Date().toISOString().split('T')[0]}.txt`;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Text Export Complete",
+      description: `Saved as ${fileName}`
+    });
+  };
+
+  // Export to RTF - Rich Text Format
+  const handleExportRTF = () => {
+    // RTF header with font table
+    let rtf = `{\\rtf1\\ansi\\deff0\n`;
+    rtf += `{\\fonttbl{\\f0\\fswiss Arial;}{\\f1\\fmodern Courier New;}}\n`;
+    rtf += `{\\colortbl;\\red0\\green0\\blue0;\\red59\\green130\\blue246;\\red100\\green100\\blue100;}\n\n`;
+
+    // Title
+    rtf += `\\f0\\fs32\\b PATIENT ROUNDING REPORT\\b0\\par\n`;
+    rtf += `\\fs20\\cf3 Generated: ${new Date().toLocaleString()}\\par\n`;
+    rtf += `Total Patients: ${patients.length}\\cf1\\par\n`;
+    rtf += `\\line\n`;
+
+    patients.forEach((patient, index) => {
+      // Patient header
+      rtf += `\\pard\\sb200\\sa100\\brdrb\\brdrs\\brdrw10\\brsp20\n`;
+      rtf += `\\fs28\\b\\cf2 Patient ${index + 1}: ${escapeRTF(patient.name || 'Unnamed')}\\cf1\\b0\\par\n`;
+      rtf += `\\fs20 Bed/Room: ${escapeRTF(patient.bed || 'N/A')}\\par\n`;
+      rtf += `\\pard\\sa100\n`;
+
+      if (isColumnEnabled("clinicalSummary") && patient.clinicalSummary) {
+        rtf += `\\fs22\\b Clinical Summary:\\b0\\par\n`;
+        rtf += `\\fs20 ${escapeRTF(stripHtml(patient.clinicalSummary))}\\par\\par\n`;
+      }
+      if (isColumnEnabled("intervalEvents") && patient.intervalEvents) {
+        rtf += `\\fs22\\b Interval Events:\\b0\\par\n`;
+        rtf += `\\fs20 ${escapeRTF(stripHtml(patient.intervalEvents))}\\par\\par\n`;
+      }
+      if (isColumnEnabled("imaging") && patient.imaging) {
+        rtf += `\\fs22\\b Imaging:\\b0\\par\n`;
+        rtf += `\\fs20 ${escapeRTF(stripHtml(patient.imaging))}\\par\\par\n`;
+      }
+      if (isColumnEnabled("labs") && patient.labs) {
+        rtf += `\\fs22\\b Labs:\\b0\\par\n`;
+        rtf += `\\fs20 ${escapeRTF(stripHtml(patient.labs))}\\par\\par\n`;
+      }
+
+      const enabledSystems = getEnabledSystemKeys();
+      if (enabledSystems.length > 0) {
+        rtf += `\\fs22\\b Systems Review:\\b0\\par\n`;
+        enabledSystems.forEach(key => {
+          const value = patient.systems[key as keyof typeof patient.systems];
+          if (value) {
+            rtf += `\\fs20\\b ${escapeRTF(systemLabels[key])}:\\b0  ${escapeRTF(stripHtml(value))}\\par\n`;
+          }
+        });
+        rtf += `\\par\n`;
+      }
+
+      if (showTodosColumn) {
+        const todos = getPatientTodos(patient.id);
+        if (todos.length > 0) {
+          rtf += `\\fs22\\b Todos:\\b0\\par\n`;
+          todos.forEach(todo => {
+            rtf += `\\fs20 ${todo.completed ? '[X]' : '[ ]'} ${escapeRTF(todo.content)}\\par\n`;
+          });
+          rtf += `\\par\n`;
+        }
+      }
+
+      if (isColumnEnabled("notes") && patientNotes[patient.id]) {
+        rtf += `\\fs22\\b Notes:\\b0\\par\n`;
+        rtf += `\\fs20 ${escapeRTF(patientNotes[patient.id])}\\par\\par\n`;
+      }
+
+      rtf += `\\par\n`;
+    });
+
+    rtf += `}`;
+
+    const blob = new Blob([rtf], { type: 'application/rtf' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const fileName = `patient-rounding-${new Date().toISOString().split('T')[0]}.rtf`;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "RTF Export Complete",
+      description: `Saved as ${fileName}`
+    });
+  };
+
+  // Helper to escape RTF special characters
+  const escapeRTF = (text: string): string => {
+    return text
+      .replace(/\\/g, '\\\\')
+      .replace(/\{/g, '\\{')
+      .replace(/\}/g, '\\}')
+      .replace(/\n/g, '\\par\n');
+  };
+
+  // Export to DOC (Word-compatible HTML)
+  const handleExportDOC = () => {
+    const dateStr = new Date().toLocaleDateString();
+    
+    let html = `
+<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" 
+      xmlns:w="urn:schemas-microsoft-com:office:word" 
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta charset="utf-8">
+  <title>Patient Rounding Report</title>
+  <style>
+    @page { margin: 1in; }
+    body { font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.4; }
+    h1 { color: #3b82f6; font-size: 18pt; margin-bottom: 5pt; }
+    h2 { color: #3b82f6; font-size: 14pt; border-bottom: 2px solid #3b82f6; padding-bottom: 5pt; margin-top: 20pt; }
+    h3 { font-size: 12pt; color: #333; margin-top: 10pt; margin-bottom: 5pt; }
+    .meta { color: #666; font-size: 10pt; margin-bottom: 15pt; }
+    .patient-card { border: 1px solid #ccc; margin: 15pt 0; padding: 10pt; page-break-inside: avoid; }
+    .patient-header { background: #3b82f6; color: white; padding: 8pt; margin: -10pt -10pt 10pt -10pt; }
+    .section { margin: 10pt 0; }
+    .section-title { font-weight: bold; color: #333; }
+    .todo-item { margin: 3pt 0; }
+    .completed { text-decoration: line-through; color: #888; }
+    table { width: 100%; border-collapse: collapse; margin: 10pt 0; }
+    th, td { border: 1px solid #ddd; padding: 5pt; text-align: left; vertical-align: top; }
+    th { background: #f5f5f5; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Patient Rounding Report</h1>
+  <div class="meta">Generated: ${new Date().toLocaleString()} | Total Patients: ${patients.length}</div>
+`;
+
+    patients.forEach((patient, index) => {
+      html += `
+  <div class="patient-card">
+    <div class="patient-header">
+      <strong>Patient ${index + 1}: ${patient.name || 'Unnamed'}</strong>
+      ${patient.bed ? ` | Bed: ${patient.bed}` : ''}
+    </div>
+`;
+
+      if (isColumnEnabled("clinicalSummary") && patient.clinicalSummary) {
+        html += `
+    <div class="section">
+      <div class="section-title">Clinical Summary</div>
+      <div>${patient.clinicalSummary}</div>
+    </div>`;
+      }
+      if (isColumnEnabled("intervalEvents") && patient.intervalEvents) {
+        html += `
+    <div class="section">
+      <div class="section-title">Interval Events</div>
+      <div>${patient.intervalEvents}</div>
+    </div>`;
+      }
+      if (isColumnEnabled("imaging") && patient.imaging) {
+        html += `
+    <div class="section">
+      <div class="section-title">Imaging</div>
+      <div>${patient.imaging}</div>
+    </div>`;
+      }
+      if (isColumnEnabled("labs") && patient.labs) {
+        html += `
+    <div class="section">
+      <div class="section-title">Labs</div>
+      <div>${patient.labs}</div>
+    </div>`;
+      }
+
+      const enabledSystems = getEnabledSystemKeys();
+      if (enabledSystems.length > 0) {
+        html += `
+    <div class="section">
+      <div class="section-title">Systems Review</div>
+      <table>
+        <tr>`;
+        enabledSystems.forEach(key => {
+          html += `<th>${systemLabels[key]}</th>`;
+        });
+        html += `</tr><tr>`;
+        enabledSystems.forEach(key => {
+          const value = patient.systems[key as keyof typeof patient.systems];
+          html += `<td>${value || '-'}</td>`;
+        });
+        html += `</tr></table>
+    </div>`;
+      }
+
+      if (showTodosColumn) {
+        const todos = getPatientTodos(patient.id);
+        if (todos.length > 0) {
+          html += `
+    <div class="section">
+      <div class="section-title">Todos</div>`;
+          todos.forEach(todo => {
+            html += `
+      <div class="todo-item ${todo.completed ? 'completed' : ''}">
+        ${todo.completed ? '☑' : '☐'} ${todo.content}
+      </div>`;
+          });
+          html += `
+    </div>`;
+        }
+      }
+
+      if (isColumnEnabled("notes") && patientNotes[patient.id]) {
+        html += `
+    <div class="section">
+      <div class="section-title">Notes</div>
+      <div>${patientNotes[patient.id]}</div>
+    </div>`;
+      }
+
+      html += `
+  </div>`;
+    });
+
+    html += `
+</body>
+</html>`;
+
+    const blob = new Blob([html], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const fileName = `patient-rounding-${new Date().toISOString().split('T')[0]}.doc`;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Word Export Complete",
+      description: `Saved as ${fileName}`
+    });
+  };
+
   // Generate print-ready HTML for each view type
   const generatePrintHTML = () => {
     const fontCSS = getFontFamilyCSS();
@@ -1983,15 +2294,27 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
         </DialogHeader>
 
         {/* Export buttons */}
-        <div className="flex gap-2 items-center border-b pb-3 mb-2">
+        <div className="flex flex-wrap gap-2 items-center border-b pb-3 mb-2">
           <span className="text-sm font-medium">Export:</span>
           <Button variant="outline" size="sm" onClick={handleExportExcel} className="gap-2">
             <FileSpreadsheet className="h-4 w-4 text-green-600" />
-            Excel (.xlsx)
+            Excel
           </Button>
           <Button variant="outline" size="sm" onClick={handleExportPDF} className="gap-2">
             <Download className="h-4 w-4 text-red-600" />
             PDF
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExportDOC} className="gap-2">
+            <FileText className="h-4 w-4 text-blue-600" />
+            Word
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExportRTF} className="gap-2">
+            <FileText className="h-4 w-4 text-purple-600" />
+            RTF
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExportTXT} className="gap-2">
+            <FileText className="h-4 w-4 text-gray-600" />
+            Text
           </Button>
         </div>
 
