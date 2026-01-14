@@ -15,6 +15,7 @@ import { defaultAutotexts, medicalDictionary } from "@/data/autotexts";
 import type { AutoText } from "@/types/autotext";
 import { DictationButton } from "./DictationButton";
 import { AITextTools } from "./AITextTools";
+import { DocumentImport } from "./DocumentImport";
 
 const textColors = [
   { name: "Default", value: "" },
@@ -570,6 +571,19 @@ export const RichTextEditor = ({
           </Button>
         </div>
         <div className="ml-auto flex items-center gap-2">
+          <DocumentImport
+            onImport={(content) => {
+              if (editorRef.current) {
+                // Append imported content to existing content
+                const newContent = editorRef.current.innerHTML
+                  ? `${editorRef.current.innerHTML}<br/><br/>${content}`
+                  : content;
+                editorRef.current.innerHTML = newContent;
+                isInternalUpdate.current = true;
+                onChange(newContent);
+              }
+            }}
+          />
           <AITextTools
             getSelectedText={() => {
               const selection = window.getSelection();
