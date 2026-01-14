@@ -134,7 +134,11 @@ export const MobilePatientDetail = ({
               placeholder="Patient Name"
               value={patient.name}
               onChange={(e) => onUpdate(patient.id, "name", e.target.value)}
-              className="text-lg font-semibold bg-transparent border-0 border-b-2 border-transparent focus:border-primary rounded-none px-0 h-auto py-1"
+              className="text-lg font-semibold bg-card border border-border focus:border-primary rounded-lg px-3 h-10"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="words"
+              spellCheck={false}
             />
           </div>
         </div>
@@ -145,7 +149,9 @@ export const MobilePatientDetail = ({
               placeholder="Bed/Room"
               value={patient.bed}
               onChange={(e) => onUpdate(patient.id, "bed", e.target.value)}
-              className="w-24 h-8 text-sm bg-secondary/50 border-0"
+              className="w-24 h-8 text-sm bg-card border border-border"
+              autoComplete="off"
+              autoCorrect="off"
             />
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
