@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { usePatients } from "@/hooks/usePatients";
 import { useCloudAutotexts } from "@/hooks/useAutotexts";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useAllPatientTodos } from "@/hooks/useAllPatientTodos";
 import { PatientCard } from "@/components/PatientCard";
 import { PrintExportModal } from "@/components/PrintExportModal";
 import { AutotextManager } from "@/components/AutotextManager";
@@ -71,6 +72,10 @@ const IndexContent = () => {
     importPatients
   } = usePatients();
   const { autotexts, templates, addAutotext, removeAutotext, addTemplate, removeTemplate } = useCloudAutotexts();
+  
+  // Fetch todos for all patients for print/export
+  const patientIds = useMemo(() => patients.map(p => p.id), [patients]);
+  const { todosMap } = useAllPatientTodos(patientIds);
   
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'filled' | 'empty'>('all');
@@ -342,6 +347,7 @@ const IndexContent = () => {
             open={showPrintModal}
             onOpenChange={setShowPrintModal}
             patients={filteredPatients}
+            patientTodos={todosMap}
             onUpdatePatient={handleUpdatePatient}
           />
 
@@ -630,6 +636,7 @@ const IndexContent = () => {
         open={showPrintModal}
         onOpenChange={setShowPrintModal}
         patients={filteredPatients}
+        patientTodos={todosMap}
         onUpdatePatient={handleUpdatePatient}
       />
 
