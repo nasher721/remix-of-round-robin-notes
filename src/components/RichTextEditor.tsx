@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { 
   Bold, Italic, Underline, List, ListOrdered, Type, Sparkles, Highlighter, HighlighterIcon,
-  Indent, Outdent, Palette, Undo2, Redo2
+  Indent, Outdent, Palette, Undo2, Redo2, FileText
 } from "lucide-react";
 import {
   Popover,
@@ -16,6 +16,10 @@ import type { AutoText } from "@/types/autotext";
 import { DictationButton } from "./DictationButton";
 import { AITextTools } from "./AITextTools";
 import { DocumentImport } from "./DocumentImport";
+import { PhrasePicker, PhraseFormDialog } from "./phrases";
+import { usePhraseExpansion } from "@/hooks/usePhraseExpansion";
+import { useClinicalPhrases } from "@/hooks/useClinicalPhrases";
+import type { Patient } from "@/types/patient";
 
 const textColors = [
   { name: "Default", value: "" },
@@ -43,6 +47,8 @@ interface RichTextEditorProps {
     enabled: boolean;
     wrapWithMarkup: (text: string) => string;
   } | null;
+  patient?: Patient;
+  section?: string;
 }
 
 export const RichTextEditor = ({ 
@@ -53,7 +59,9 @@ export const RichTextEditor = ({
   minHeight = "80px",
   autotexts = defaultAutotexts,
   fontSize = 14,
-  changeTracking = null
+  changeTracking = null,
+  patient,
+  section
 }: RichTextEditorProps) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const fontSizeRef = useRef(fontSize);
@@ -66,8 +74,62 @@ export const RichTextEditor = ({
   // Per-editor toggle: null means follow global setting, false means disabled for this editor
   const [localMarkingDisabled, setLocalMarkingDisabled] = useState(false);
   
-  // Effective change tracking state
+  // Effective change tracking state - must be defined before any callbacks that use it
   const effectiveChangeTracking = localMarkingDisabled ? null : changeTracking;
+  
+  // Clinical phrase system
+  const { folders } = useClinicalPhrases();
+  
+  // Insert phrase content handler
+  const insertPhraseContent = useCallback((content: string) => {
+    if (!editorRef.current) return;
+    
+    const selection = window.getSelection();
+    const range = selection && selection.rangeCount > 0 
+      ? selection.getRangeAt(0) 
+      : null;
+    
+    let contentHtml = content;
+    if (effectiveChangeTracking?.enabled) {
+      contentHtml = effectiveChangeTracking.wrapWithMarkup(content);
+    }
+    
+    if (range && editorRef.current.contains(range.startContainer)) {
+      range.deleteContents();
+      const temp = document.createElement('div');
+      temp.innerHTML = contentHtml;
+      const fragment = document.createDocumentFragment();
+      while (temp.firstChild) {
+        fragment.appendChild(temp.firstChild);
+      }
+      range.insertNode(fragment);
+      range.collapse(false);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    } else {
+      editorRef.current.innerHTML += contentHtml;
+    }
+    
+    isInternalUpdate.current = true;
+    onChange(editorRef.current.innerHTML);
+    editorRef.current.focus();
+  }, [onChange, effectiveChangeTracking]);
+  
+  // Use phrase expansion hook
+  const {
+    phrases,
+    selectedPhrase,
+    phraseFields,
+    showForm,
+    handleFormInsert,
+    handleLogUsage,
+    closeForm,
+    selectPhrase,
+  } = usePhraseExpansion({
+    patient,
+    context: { section },
+    onInsert: insertPhraseContent,
+  });
 
   // Handle dictation transcript insertion
   const handleDictationTranscript = useCallback((text: string) => {
@@ -627,6 +689,24 @@ export const RichTextEditor = ({
             size="sm"
           />
           <div className="w-px h-5 bg-border" />
+          <PhrasePicker
+            phrases={phrases}
+            folders={folders}
+            trigger={
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                title="Insert clinical phrase"
+                className="h-7 px-2 gap-1"
+              >
+                <FileText className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline text-xs">Phrases</span>
+              </Button>
+            }
+            onSelect={selectPhrase}
+            context={{ section }}
+          />
           {changeTracking?.enabled && (
             <Button
               type="button"
@@ -703,6 +783,19 @@ export const RichTextEditor = ({
             Tab/Enter to insert • Esc to close
           </div>
         </div>
+      )}
+
+      {/* Phrase Form Dialog */}
+      {selectedPhrase && (
+        <PhraseFormDialog
+          phrase={selectedPhrase}
+          fields={phraseFields}
+          patient={patient}
+          open={showForm}
+          onOpenChange={(open) => !open && closeForm()}
+          onInsert={handleFormInsert}
+          onLogUsage={handleLogUsage}
+        />
       )}
     </div>
   );

@@ -2,7 +2,7 @@ import { useRef, useCallback, useEffect, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { 
   Bold, Italic, List, ImageIcon, Loader2, Maximize2, Highlighter, HighlighterIcon,
-  Indent, Outdent, Palette, Undo2, Redo2
+  Indent, Outdent, Palette, Undo2, Redo2, FileText
 } from "lucide-react";
 import {
   Popover,
@@ -18,6 +18,10 @@ import { defaultAutotexts, medicalDictionary } from "@/data/autotexts";
 import { ImageLightbox } from "./ImageLightbox";
 import { DictationButton } from "./DictationButton";
 import { AITextTools } from "./AITextTools";
+import { PhrasePicker, PhraseFormDialog } from "./phrases";
+import { usePhraseExpansion } from "@/hooks/usePhraseExpansion";
+import { useClinicalPhrases } from "@/hooks/useClinicalPhrases";
+import type { Patient } from "@/types/patient";
 
 const textColors = [
   { name: "Default", value: "" },
@@ -43,6 +47,8 @@ interface ImagePasteEditorProps {
     enabled: boolean;
     wrapWithMarkup: (text: string) => string;
   } | null;
+  patient?: Patient;
+  section?: string;
 }
 
 // Extract image URLs from HTML content
@@ -71,7 +77,9 @@ export const ImagePasteEditor = ({
   minHeight = "60px",
   autotexts = defaultAutotexts,
   fontSize = 14,
-  changeTracking = null
+  changeTracking = null,
+  patient,
+  section
 }: ImagePasteEditorProps) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const isInternalUpdate = useRef(false);
@@ -83,8 +91,62 @@ export const ImagePasteEditor = ({
   // Per-editor toggle: when true, marking is disabled for this editor
   const [localMarkingDisabled, setLocalMarkingDisabled] = useState(false);
   
-  // Effective change tracking state
+  // Effective change tracking state - must be defined before any callbacks that use it
   const effectiveChangeTracking = localMarkingDisabled ? null : changeTracking;
+  
+  // Clinical phrase system
+  const { folders } = useClinicalPhrases();
+  
+  // Insert phrase content handler
+  const insertPhraseContent = useCallback((content: string) => {
+    if (!editorRef.current) return;
+    
+    const selection = window.getSelection();
+    const range = selection && selection.rangeCount > 0 
+      ? selection.getRangeAt(0) 
+      : null;
+    
+    let contentHtml = content;
+    if (effectiveChangeTracking?.enabled) {
+      contentHtml = effectiveChangeTracking.wrapWithMarkup(content);
+    }
+    
+    if (range && editorRef.current.contains(range.startContainer)) {
+      range.deleteContents();
+      const temp = document.createElement('div');
+      temp.innerHTML = contentHtml;
+      const fragment = document.createDocumentFragment();
+      while (temp.firstChild) {
+        fragment.appendChild(temp.firstChild);
+      }
+      range.insertNode(fragment);
+      range.collapse(false);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    } else {
+      editorRef.current.innerHTML += contentHtml;
+    }
+    
+    isInternalUpdate.current = true;
+    onChange(editorRef.current.innerHTML);
+    editorRef.current.focus();
+  }, [onChange, effectiveChangeTracking]);
+  
+  // Use phrase expansion hook
+  const {
+    phrases,
+    selectedPhrase,
+    phraseFields,
+    showForm,
+    handleFormInsert,
+    handleLogUsage,
+    closeForm,
+    selectPhrase,
+  } = usePhraseExpansion({
+    patient,
+    context: { section },
+    onInsert: insertPhraseContent,
+  });
 
   // Extract images from current value
   const imageUrls = useMemo(() => extractImageUrls(value), [value]);
@@ -641,6 +703,24 @@ export const ImagePasteEditor = ({
             size="sm"
             className="h-6 w-6"
           />
+          <PhrasePicker
+            phrases={phrases}
+            folders={folders}
+            trigger={
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                title="Insert clinical phrase"
+                className="h-6 px-1.5 gap-1"
+              >
+                <FileText className="h-3 w-3" />
+                <span className="hidden sm:inline text-[10px]">Phrases</span>
+              </Button>
+            }
+            onSelect={selectPhrase}
+            context={{ section }}
+          />
           {isUploading && (
             <>
               <div className="w-px h-4 bg-border mx-1" />
@@ -726,6 +806,19 @@ export const ImagePasteEditor = ({
         open={lightboxOpen}
         onOpenChange={setLightboxOpen}
       />
+
+      {/* Phrase Form Dialog */}
+      {selectedPhrase && (
+        <PhraseFormDialog
+          phrase={selectedPhrase}
+          fields={phraseFields}
+          patient={patient}
+          open={showForm}
+          onOpenChange={(open) => !open && closeForm()}
+          onInsert={handleFormInsert}
+          onLogUsage={handleLogUsage}
+        />
+      )}
     </div>
   );
 };
