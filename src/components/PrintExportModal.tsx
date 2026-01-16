@@ -1,4 +1,4 @@
-import type { Patient, PatientSystems } from "@/types/patient";
+import type { Patient } from "@/types/patient";
 import type { PatientTodo } from "@/types/todo";
 import { SYSTEM_LABELS_SHORT, SYSTEM_KEYS } from "@/constants/systems";
 import { Button } from "@/components/ui/button";
@@ -163,7 +163,7 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
     }
     return defaultColumns;
   });
-  const [patientNotes, setPatientNotes] = useState<Record<string, string>>({});
+  const [patientNotes] = useState<Record<string, string>>({});
   const [columnsOpen, setColumnsOpen] = useState(false);
   const [resizing, setResizing] = useState<{ column: string; startX: number; startWidth: number } | null>(null);
   const [isFullPreview, setIsFullPreview] = useState(false);
@@ -1041,10 +1041,6 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
 
   // Generate print-ready HTML for each view type
   const generatePrintHTML = () => {
-    const fontCSS = getFontFamilyCSS();
-    const baseFontSize = printFontSize;
-    const headerFontSize = Math.max(baseFontSize + 6, 14);
-    const patientNameSize = Math.max(baseFontSize + 1, 9);
     
     let contentHTML = '';
     
