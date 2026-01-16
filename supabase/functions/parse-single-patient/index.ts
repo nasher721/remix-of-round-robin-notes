@@ -165,14 +165,17 @@ ${content}`;
     const aiResponse = await response.json();
     
     console.log("AI response received, parsing...");
+    console.log("Full AI response:", JSON.stringify(aiResponse, null, 2));
 
     let parsedData: any;
     
     // Check for tool call response
     const toolCall = aiResponse.choices?.[0]?.message?.tool_calls?.[0];
     if (toolCall?.function?.arguments) {
+      console.log("Tool call arguments raw:", toolCall.function.arguments);
       try {
         parsedData = JSON.parse(toolCall.function.arguments);
+        console.log("Parsed tool data neuro sample:", parsedData.neuro?.substring(0, 200));
       } catch (e) {
         console.error("Failed to parse tool call arguments:", e);
       }
