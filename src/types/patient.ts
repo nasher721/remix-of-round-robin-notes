@@ -17,6 +17,15 @@ export interface PatientSystems {
   dispo: string;
 }
 
+// Field timestamps tracking when each field was last modified
+export interface FieldTimestamps {
+  clinicalSummary?: string;
+  intervalEvents?: string;
+  imaging?: string;
+  labs?: string;
+  [key: `systems.${string}`]: string | undefined;
+}
+
 // Default empty systems object
 export const defaultSystems: PatientSystems = {
   neuro: "",
@@ -46,6 +55,7 @@ export interface DbPatient {
   imaging: string;
   labs: string;
   systems: PatientSystems;
+  field_timestamps: FieldTimestamps;
   collapsed: boolean;
   created_at: string;
   last_modified: string;
@@ -65,6 +75,7 @@ export interface Patient {
   imaging: string;
   labs: string;
   systems: PatientSystems;
+  fieldTimestamps: FieldTimestamps;
   collapsed: boolean;
   createdAt: string;
   lastModified: string;
