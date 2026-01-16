@@ -88,6 +88,7 @@ export type Database = {
           clinical_summary: string
           collapsed: boolean
           created_at: string
+          field_timestamps: Json | null
           id: string
           imaging: string
           interval_events: string
@@ -103,6 +104,7 @@ export type Database = {
           clinical_summary?: string
           collapsed?: boolean
           created_at?: string
+          field_timestamps?: Json | null
           id?: string
           imaging?: string
           interval_events?: string
@@ -118,6 +120,7 @@ export type Database = {
           clinical_summary?: string
           collapsed?: boolean
           created_at?: string
+          field_timestamps?: Json | null
           id?: string
           imaging?: string
           interval_events?: string

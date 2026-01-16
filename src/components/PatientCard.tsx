@@ -5,6 +5,7 @@ import { useState } from "react";
 import { RichTextEditor } from "./RichTextEditor";
 import { ImagePasteEditor } from "./ImagePasteEditor";
 import { PatientTodos } from "./PatientTodos";
+import { FieldTimestamp } from "./FieldTimestamp";
 import { AutoText } from "@/types/autotext";
 import { defaultAutotexts } from "@/data/autotexts";
 import type { Patient, PatientSystems } from "@/types/patient";
@@ -198,16 +199,19 @@ export const PatientCard = ({
                 </Button>
               </div>
             </div>
-            <div className="bg-secondary/30 rounded-lg p-3 border border-border/50">
-              <RichTextEditor
-                value={patient.clinicalSummary}
-                onChange={(value) => onUpdate(patient.id, 'clinicalSummary', value)}
-                placeholder="Enter clinical summary..."
-                minHeight="80px"
-                autotexts={autotexts}
-                fontSize={globalFontSize}
-                changeTracking={changeTracking}
-              />
+            <div className="space-y-1">
+              <div className="bg-secondary/30 rounded-lg p-3 border border-border/50">
+                <RichTextEditor
+                  value={patient.clinicalSummary}
+                  onChange={(value) => onUpdate(patient.id, 'clinicalSummary', value)}
+                  placeholder="Enter clinical summary..."
+                  minHeight="80px"
+                  autotexts={autotexts}
+                  fontSize={globalFontSize}
+                  changeTracking={changeTracking}
+                />
+              </div>
+              <FieldTimestamp timestamp={patient.fieldTimestamps?.clinicalSummary} className="pl-1" />
             </div>
           </div>
 
@@ -268,16 +272,19 @@ export const PatientCard = ({
                 </Button>
               </div>
             </div>
-            <div className="bg-secondary/30 rounded-lg p-3 border border-border/50">
-              <RichTextEditor
-                value={patient.intervalEvents}
-                onChange={(value) => onUpdate(patient.id, 'intervalEvents', value)}
-                placeholder="Enter interval events..."
-                minHeight="80px"
-                autotexts={autotexts}
-                fontSize={globalFontSize}
-                changeTracking={changeTracking}
-              />
+            <div className="space-y-1">
+              <div className="bg-secondary/30 rounded-lg p-3 border border-border/50">
+                <RichTextEditor
+                  value={patient.intervalEvents}
+                  onChange={(value) => onUpdate(patient.id, 'intervalEvents', value)}
+                  placeholder="Enter interval events..."
+                  minHeight="80px"
+                  autotexts={autotexts}
+                  fontSize={globalFontSize}
+                  changeTracking={changeTracking}
+                />
+              </div>
+              <FieldTimestamp timestamp={patient.fieldTimestamps?.intervalEvents} className="pl-1" />
             </div>
           </div>
 
@@ -316,16 +323,19 @@ export const PatientCard = ({
                   </Button>
                 </div>
               </div>
-              <div className="bg-blue-50/30 rounded-lg border border-blue-200/50">
-                <ImagePasteEditor
-                  value={patient.imaging}
-                  onChange={(value) => onUpdate(patient.id, 'imaging', value)}
-                  placeholder="X-rays, CT, MRI, Echo... (paste images here)"
-                  minHeight="60px"
-                  autotexts={autotexts}
-                  fontSize={globalFontSize}
-                  changeTracking={changeTracking}
-                />
+              <div className="space-y-1">
+                <div className="bg-blue-50/30 rounded-lg border border-blue-200/50">
+                  <ImagePasteEditor
+                    value={patient.imaging}
+                    onChange={(value) => onUpdate(patient.id, 'imaging', value)}
+                    placeholder="X-rays, CT, MRI, Echo... (paste images here)"
+                    minHeight="60px"
+                    autotexts={autotexts}
+                    fontSize={globalFontSize}
+                    changeTracking={changeTracking}
+                  />
+                </div>
+                <FieldTimestamp timestamp={patient.fieldTimestamps?.imaging} className="pl-1" />
               </div>
             </div>
 
@@ -362,16 +372,19 @@ export const PatientCard = ({
                   </Button>
                 </div>
               </div>
-              <div className="bg-secondary/30 rounded-lg p-3 border border-border/50">
-              <RichTextEditor
-                  value={patient.labs}
-                  onChange={(value) => onUpdate(patient.id, 'labs', value)}
-                  placeholder="CBC, BMP, LFTs, coags..."
-                  minHeight="60px"
-                  autotexts={autotexts}
-                  fontSize={globalFontSize}
-                  changeTracking={changeTracking}
-                />
+              <div className="space-y-1">
+                <div className="bg-secondary/30 rounded-lg p-3 border border-border/50">
+                  <RichTextEditor
+                    value={patient.labs}
+                    onChange={(value) => onUpdate(patient.id, 'labs', value)}
+                    placeholder="CBC, BMP, LFTs, coags..."
+                    minHeight="60px"
+                    autotexts={autotexts}
+                    fontSize={globalFontSize}
+                    changeTracking={changeTracking}
+                  />
+                </div>
+                <FieldTimestamp timestamp={patient.fieldTimestamps?.labs} className="pl-1" />
               </div>
             </div>
           </div>
@@ -413,15 +426,21 @@ export const PatientCard = ({
                       )}
                     </div>
                   </div>
-                  <RichTextEditor
-                    value={patient.systems[key as keyof PatientSystems]}
-                    onChange={(value) => onUpdate(patient.id, `systems.${key}`, value)}
-                    placeholder={`${label}...`}
-                    minHeight="50px"
-                    autotexts={autotexts}
-                    fontSize={globalFontSize}
-                    changeTracking={changeTracking}
-                  />
+                  <div className="space-y-1">
+                    <RichTextEditor
+                      value={patient.systems[key as keyof PatientSystems]}
+                      onChange={(value) => onUpdate(patient.id, `systems.${key}`, value)}
+                      placeholder={`${label}...`}
+                      minHeight="50px"
+                      autotexts={autotexts}
+                      fontSize={globalFontSize}
+                      changeTracking={changeTracking}
+                    />
+                    <FieldTimestamp 
+                      timestamp={patient.fieldTimestamps?.[`systems.${key}` as keyof typeof patient.fieldTimestamps]} 
+                      className="pl-1" 
+                    />
+                  </div>
                 </div>
               ))}
             </div>

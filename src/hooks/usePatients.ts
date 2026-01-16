@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { useToast } from "./use-toast";
-import type { Patient, PatientSystems, defaultSystems } from "@/types/patient";
-import { parseSystemsJson, dbToUiPatient, prepareUpdateData } from "@/lib/mappers/patientMapper";
+import type { Patient, PatientSystems, FieldTimestamps } from "@/types/patient";
+import { parseSystemsJson, parseFieldTimestampsJson, prepareUpdateData } from "@/lib/mappers/patientMapper";
 import type { Json } from "@/integrations/supabase/types";
 
 const defaultSystemsValue: PatientSystems = {
@@ -54,6 +54,7 @@ export const usePatients = () => {
         imaging: p.imaging || '',
         labs: p.labs || '',
         systems: parseSystemsJson(p.systems),
+        fieldTimestamps: parseFieldTimestampsJson(p.field_timestamps),
         collapsed: p.collapsed,
         createdAt: p.created_at,
         lastModified: p.last_modified,
@@ -113,6 +114,7 @@ export const usePatients = () => {
         imaging: data.imaging || '',
         labs: data.labs || '',
         systems: parseSystemsJson(data.systems),
+        fieldTimestamps: parseFieldTimestampsJson(data.field_timestamps),
         collapsed: data.collapsed,
         createdAt: data.created_at,
         lastModified: data.last_modified,
@@ -138,11 +140,27 @@ export const usePatients = () => {
   const updatePatient = useCallback(async (id: string, field: string, value: unknown) => {
     if (!user) return;
 
+    const now = new Date().toISOString();
+    
+    // Fields that should track timestamps (content fields only)
+    const trackableFields = ['clinicalSummary', 'intervalEvents', 'imaging', 'labs'];
+    const isSystemField = field.startsWith('systems.');
+    const shouldTrackTimestamp = trackableFields.includes(field) || isSystemField;
+
     // Optimistic update
     setPatients((prev) =>
       prev.map((p) => {
         if (p.id === id) {
-          const updated = { ...p, lastModified: new Date().toISOString() };
+          const updated = { ...p, lastModified: now };
+          
+          // Update field timestamps if this is a trackable field
+          if (shouldTrackTimestamp) {
+            updated.fieldTimestamps = {
+              ...p.fieldTimestamps,
+              [field]: now,
+            };
+          }
+          
           if (field.includes(".")) {
             const [parent, child] = field.split(".");
             if (parent === "systems") {
@@ -160,6 +178,14 @@ export const usePatients = () => {
     // Prepare update object
     const patient = patients.find((p) => p.id === id);
     const updateData = prepareUpdateData(field, value, patient?.systems);
+    
+    // Add field timestamp update if trackable
+    if (shouldTrackTimestamp && patient) {
+      updateData.field_timestamps = {
+        ...patient.fieldTimestamps,
+        [field]: now,
+      };
+    }
 
     try {
       const { error } = await supabase
@@ -239,6 +265,7 @@ export const usePatients = () => {
         imaging: data.imaging || '',
         labs: data.labs || '',
         systems: parseSystemsJson(data.systems),
+        fieldTimestamps: parseFieldTimestampsJson(data.field_timestamps),
         collapsed: data.collapsed,
         createdAt: data.created_at,
         lastModified: data.last_modified,
@@ -313,6 +340,7 @@ export const usePatients = () => {
           imaging: data.imaging || '',
           labs: data.labs || '',
           systems: parseSystemsJson(data.systems),
+          fieldTimestamps: parseFieldTimestampsJson(data.field_timestamps),
           collapsed: data.collapsed,
           createdAt: data.created_at,
           lastModified: data.last_modified,
@@ -381,6 +409,7 @@ export const usePatients = () => {
         imaging: data.imaging || '',
         labs: data.labs || '',
         systems: parseSystemsJson(data.systems),
+        fieldTimestamps: parseFieldTimestampsJson(data.field_timestamps),
         collapsed: data.collapsed,
         createdAt: data.created_at,
         lastModified: data.last_modified,

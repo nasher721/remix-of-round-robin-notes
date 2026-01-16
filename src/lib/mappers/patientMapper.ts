@@ -3,7 +3,7 @@
  * Transforms between database and UI patient representations
  */
 
-import type { DbPatient, Patient, PatientSystems, defaultSystems } from "@/types/patient";
+import type { DbPatient, Patient, PatientSystems, FieldTimestamps } from "@/types/patient";
 import type { Json } from "@/integrations/supabase/types";
 
 /**
@@ -43,6 +43,16 @@ export const parseSystemsJson = (systems: Json | null): PatientSystems => {
 };
 
 /**
+ * Parse field_timestamps JSON from database into typed FieldTimestamps
+ */
+export const parseFieldTimestampsJson = (timestamps: Json | null): FieldTimestamps => {
+  if (!timestamps || typeof timestamps !== 'object' || Array.isArray(timestamps)) {
+    return {};
+  }
+  return timestamps as FieldTimestamps;
+};
+
+/**
  * Convert database patient to UI patient (snake_case to camelCase)
  */
 export const dbToUiPatient = (dbPatient: DbPatient): Patient => ({
@@ -55,6 +65,7 @@ export const dbToUiPatient = (dbPatient: DbPatient): Patient => ({
   imaging: dbPatient.imaging,
   labs: dbPatient.labs,
   systems: dbPatient.systems,
+  fieldTimestamps: dbPatient.field_timestamps || {},
   collapsed: dbPatient.collapsed,
   createdAt: dbPatient.created_at,
   lastModified: dbPatient.last_modified,
