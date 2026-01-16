@@ -29,16 +29,15 @@ interface ParsedPatient {
 }
 
 /**
- * Normalize text formatting without removing any content
+ * Preserve text exactly as provided - only convert CRLF to LF
  */
-function normalizeText(text: string): string {
+function preserveText(text: string): string {
   if (!text) return '';
   
+  // Only normalize line endings, preserve everything else exactly
   return text
     .replace(/\r\n/g, '\n')
-    .replace(/\r/g, '\n')
-    .replace(/\n{4,}/g, '\n\n\n')
-    .trim();
+    .replace(/\r/g, '\n');
 }
 
 serve(async (req) => {
@@ -68,23 +67,27 @@ serve(async (req) => {
 
     const systemPrompt = `You are a clinical data extraction assistant. Your task is to parse unstructured clinical notes and organize them into a structured format for a single patient.
 
-CRITICAL RULES - INCLUDE ALL TEXT:
-1. YOU MUST INCLUDE ALL TEXT from the input - do NOT summarize, shorten, or omit any information
-2. PRESERVE all original line breaks, paragraph structure, and whitespace patterns
-3. Use \\n for line breaks and \\n\\n for paragraph breaks in JSON strings
-4. Do NOT merge separate lines or paragraphs into continuous text
-5. Keep bullet points, numbered lists, and indentation patterns
-6. If text doesn't clearly fit a category, include it in clinicalSummary
-7. Text can appear in MULTIPLE sections if it's relevant to multiple systems
+CRITICAL FORMATTING RULES - PRESERVE EXACTLY:
+1. COPY TEXT VERBATIM - do NOT rephrase, summarize, shorten, or modify ANY wording
+2. PRESERVE EXACT FORMATTING:
+   - Keep ALL original line breaks exactly as they appear (use \\n in JSON)
+   - Keep ALL original spacing and indentation
+   - Keep ALL bullet points, dashes, asterisks, and numbered lists exactly as written
+   - Keep ALL blank lines between sections (use \\n\\n in JSON)
+   - Keep ALL original punctuation and capitalization
+3. Do NOT merge lines together - if the original has separate lines, keep them separate
+4. Do NOT add any new formatting, headers, or structure that wasn't in the original
+5. If text doesn't clearly fit a category, include it in clinicalSummary
+6. Text can appear in MULTIPLE sections if it's relevant to multiple systems
 
 EXTRACTION RULES:
 1. Extract patient name if present (or leave empty if not found)
 2. Extract bed/room number if present (or leave empty if not found)
 3. Clinical Summary: Overall patient history, diagnoses, admission reason, and ANY text that doesn't fit other categories
 4. Interval Events: Recent developments, overnight events, "what happened on rounds"
-5. Imaging: Any imaging studies mentioned (CT, MRI, X-ray, Echo, etc.) - include full descriptions
-6. Labs: Any laboratory values or trends mentioned - include ALL lab values
-7. Systems: Organize organ-system specific information (include ALL relevant details):
+5. Imaging: Any imaging studies mentioned (CT, MRI, X-ray, Echo, etc.) - copy EXACTLY as written
+6. Labs: Any laboratory values or trends mentioned - copy EXACTLY as written
+7. Systems: Organize organ-system specific information - copy EXACTLY as written:
    - neuro: Neurological findings, mental status, sedation
    - cv: Cardiovascular - vitals, pressors, cardiac issues
    - resp: Respiratory - ventilator settings, oxygen, lung findings
@@ -100,24 +103,24 @@ Return a JSON object with this exact structure:
 {
   "name": "Patient Name or empty string",
   "bed": "Bed/Room number or empty string",
-  "clinicalSummary": "Overall summary preserving ALL formatting and content",
-  "intervalEvents": "Recent events preserving ALL formatting",
-  "imaging": "ALL imaging findings or empty string",
-  "labs": "ALL lab values or empty string",
+  "clinicalSummary": "EXACT text with original formatting preserved",
+  "intervalEvents": "EXACT text with original formatting preserved",
+  "imaging": "EXACT text or empty string",
+  "labs": "EXACT text or empty string",
   "systems": {
-    "neuro": "ALL neuro content or empty string",
-    "cv": "ALL cv content or empty string",
-    "resp": "ALL resp content or empty string",
-    "renalGU": "ALL renal content or empty string",
-    "gi": "ALL gi content or empty string",
-    "endo": "ALL endo content or empty string",
-    "heme": "ALL heme content or empty string",
-    "infectious": "ALL ID content or empty string",
-    "skinLines": "ALL skin/lines content or empty string",
-    "dispo": "ALL dispo content or empty string"
+    "neuro": "EXACT text or empty string",
+    "cv": "EXACT text or empty string",
+    "resp": "EXACT text or empty string",
+    "renalGU": "EXACT text or empty string",
+    "gi": "EXACT text or empty string",
+    "endo": "EXACT text or empty string",
+    "heme": "EXACT text or empty string",
+    "infectious": "EXACT text or empty string",
+    "skinLines": "EXACT text or empty string",
+    "dispo": "EXACT text or empty string"
   }
 }`;
-    const userPrompt = `Parse the following clinical notes for a single patient and organize into the structured format. Preserve all original formatting and line breaks.
+    const userPrompt = `Parse the following clinical notes for a single patient. COPY THE TEXT EXACTLY - preserve all original formatting, line breaks, spacing, bullet points, and wording verbatim.
 
 CLINICAL NOTES:
 ${content}`;
@@ -216,25 +219,25 @@ ${content}`;
       }
     }
 
-    // Normalize text formatting without removing any content
+    // Preserve text exactly as provided
     const cleanedPatient: ParsedPatient = {
-      name: normalizeText(parsedPatient.name || ''),
-      bed: normalizeText(parsedPatient.bed || ''),
-      clinicalSummary: normalizeText(parsedPatient.clinicalSummary || ''),
-      intervalEvents: normalizeText(parsedPatient.intervalEvents || ''),
-      imaging: normalizeText(parsedPatient.imaging || ''),
-      labs: normalizeText(parsedPatient.labs || ''),
+      name: preserveText(parsedPatient.name || '').trim(),
+      bed: preserveText(parsedPatient.bed || '').trim(),
+      clinicalSummary: preserveText(parsedPatient.clinicalSummary || ''),
+      intervalEvents: preserveText(parsedPatient.intervalEvents || ''),
+      imaging: preserveText(parsedPatient.imaging || ''),
+      labs: preserveText(parsedPatient.labs || ''),
       systems: {
-        neuro: normalizeText(parsedPatient.systems?.neuro || ''),
-        cv: normalizeText(parsedPatient.systems?.cv || ''),
-        resp: normalizeText(parsedPatient.systems?.resp || ''),
-        renalGU: normalizeText(parsedPatient.systems?.renalGU || ''),
-        gi: normalizeText(parsedPatient.systems?.gi || ''),
-        endo: normalizeText(parsedPatient.systems?.endo || ''),
-        heme: normalizeText(parsedPatient.systems?.heme || ''),
-        infectious: normalizeText(parsedPatient.systems?.infectious || ''),
-        skinLines: normalizeText(parsedPatient.systems?.skinLines || ''),
-        dispo: normalizeText(parsedPatient.systems?.dispo || ''),
+        neuro: preserveText(parsedPatient.systems?.neuro || ''),
+        cv: preserveText(parsedPatient.systems?.cv || ''),
+        resp: preserveText(parsedPatient.systems?.resp || ''),
+        renalGU: preserveText(parsedPatient.systems?.renalGU || ''),
+        gi: preserveText(parsedPatient.systems?.gi || ''),
+        endo: preserveText(parsedPatient.systems?.endo || ''),
+        heme: preserveText(parsedPatient.systems?.heme || ''),
+        infectious: preserveText(parsedPatient.systems?.infectious || ''),
+        skinLines: preserveText(parsedPatient.systems?.skinLines || ''),
+        dispo: preserveText(parsedPatient.systems?.dispo || ''),
       },
     };
 
