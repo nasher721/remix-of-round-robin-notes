@@ -82,10 +82,14 @@ interface ColumnCombination {
   columns: string[];
 }
 
+// All system column keys for the "Systems Review" combination
+const allSystemColumnKeys = systemKeys.map(key => `systems.${key}`);
+
 const columnCombinations: ColumnCombination[] = [
   { key: "summaryEvents", label: "Summary + Events", columns: ["clinicalSummary", "intervalEvents"] },
   { key: "imagingLabs", label: "Imaging + Labs", columns: ["imaging", "labs"] },
   { key: "allContent", label: "All Clinical Data", columns: ["clinicalSummary", "intervalEvents", "imaging", "labs"] },
+  { key: "systemsReview", label: "Systems Review (All Systems)", columns: allSystemColumnKeys },
 ];
 
 const defaultColumns: ColumnConfig[] = [
