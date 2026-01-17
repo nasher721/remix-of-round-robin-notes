@@ -112,15 +112,25 @@ interface ExpandedCell {
   field: string;
 }
 
-// Column widths type
+// Column widths type - includes individual system columns
 type ColumnWidthsType = {
   patient: number;
   summary: number;
   events: number;
   imaging: number;
   labs: number;
-  systems: number;
   notes: number;
+  // Individual system widths
+  'systems.neuro': number;
+  'systems.cv': number;
+  'systems.resp': number;
+  'systems.renalGU': number;
+  'systems.gi': number;
+  'systems.endo': number;
+  'systems.heme': number;
+  'systems.infectious': number;
+  'systems.skinLines': number;
+  'systems.dispo': number;
 };
 
 // Custom print preset structure
@@ -183,16 +193,25 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
   const [expandedCell, setExpandedCell] = useState<ExpandedCell | null>(null);
   const [editingCell, setEditingCell] = useState<ExpandedCell | null>(null);
   const [editValue, setEditValue] = useState("");
-  const defaultColumnWidths = {
+  const defaultColumnWidths: ColumnWidthsType = {
     patient: 100,
     summary: 150,
     events: 150,
     imaging: 120,
     labs: 120,
-    systems: 90,
-    notes: 140
+    notes: 140,
+    'systems.neuro': 90,
+    'systems.cv': 90,
+    'systems.resp': 90,
+    'systems.renalGU': 90,
+    'systems.gi': 90,
+    'systems.endo': 90,
+    'systems.heme': 90,
+    'systems.infectious': 90,
+    'systems.skinLines': 90,
+    'systems.dispo': 90,
   };
-  const [columnWidths, setColumnWidths] = useState(defaultColumnWidths);
+  const [columnWidths, setColumnWidths] = useState<ColumnWidthsType>(defaultColumnWidths);
   const [columnWidthsOpen, setColumnWidthsOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [columns, setColumns] = useState<ColumnConfig[]>(() => {
@@ -363,7 +382,7 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
     if (!resizing) return;
     const diff = e.clientX - resizing.startX;
     const newWidth = Math.max(50, Math.min(400, resizing.startWidth + diff));
-    setColumnWidths(prev => ({ ...prev, [resizing.column]: newWidth }));
+    setColumnWidths(prev => ({ ...prev, [resizing.column]: newWidth } as ColumnWidthsType));
   }, [resizing]);
 
   const handleResizeEnd = useCallback(() => {
@@ -1283,7 +1302,8 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
       }
       
       enabledSystemKeys.forEach(key => {
-        tableHeaders += `<th style="width: ${columnWidths.systems}px;">${systemLabels[key]}</th>`;
+        const sysWidth = columnWidths[`systems.${key}` as keyof ColumnWidthsType] || 90;
+        tableHeaders += `<th style="width: ${sysWidth}px;">${systemLabels[key]}</th>`;
       });
       if (showTodosColumn) {
         tableHeaders += `<th class="todos-header" style="width: ${columnWidths.notes}px;">Todos</th>`;
@@ -2276,7 +2296,7 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
                   <th 
                     key={key} 
                     className="border border-border p-3 text-left font-bold uppercase"
-                    style={{ width: columnWidths.systems, fontSize: `${printFontSize}px` }}
+                    style={{ width: columnWidths[`systems.${key}` as keyof ColumnWidthsType] || 90, fontSize: `${printFontSize}px` }}
                   >
                     {systemLabels[key]}
                   </th>
@@ -3069,20 +3089,52 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
                 </div>
               )}
               
+              {/* Individual System Column Widths */}
               {enabledSystemKeys.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-medium">Systems (each)</Label>
-                    <span className="text-xs text-muted-foreground">{columnWidths.systems}px</span>
+                <div className="col-span-full">
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="text-xs font-medium">System Columns</Label>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => {
+                        const resetSystems: Partial<ColumnWidthsType> = {};
+                        systemKeys.forEach(key => {
+                          resetSystems[`systems.${key}` as keyof ColumnWidthsType] = 90;
+                        });
+                        setColumnWidths(prev => ({ ...prev, ...resetSystems }));
+                      }}
+                      className="h-6 text-xs gap-1"
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                      Reset Systems
+                    </Button>
                   </div>
-                  <Slider
-                    value={[columnWidths.systems]}
-                    onValueChange={([value]) => setColumnWidths(prev => ({ ...prev, systems: value }))}
-                    min={50}
-                    max={180}
-                    step={5}
-                    className="w-full"
-                  />
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                    {enabledSystemKeys.map(key => (
+                      <div key={key} className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs font-medium truncate" title={systemLabels[key]}>
+                            {SYSTEM_LABELS_SHORT[key]}
+                          </Label>
+                          <span className="text-xs text-muted-foreground">
+                            {columnWidths[`systems.${key}` as keyof ColumnWidthsType] || 90}px
+                          </span>
+                        </div>
+                        <Slider
+                          value={[columnWidths[`systems.${key}` as keyof ColumnWidthsType] || 90]}
+                          onValueChange={([value]) => setColumnWidths(prev => ({ 
+                            ...prev, 
+                            [`systems.${key}`]: value 
+                          } as ColumnWidthsType))}
+                          min={50}
+                          max={180}
+                          step={5}
+                          className="w-full"
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
               
@@ -3328,11 +3380,11 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
                           Labs
                         </ResizableHeader>
                       )}
-                      {enabledSystemKeys.map((key, idx) => (
+                      {enabledSystemKeys.map((key) => (
                         <ResizableHeader 
                           key={key} 
-                          column="systems" 
-                          width={columnWidths.systems}
+                          column={`systems.${key}`} 
+                          width={columnWidths[`systems.${key}` as keyof ColumnWidthsType] || 90}
                         >
                           {systemLabels[key]}
                         </ResizableHeader>
