@@ -1445,8 +1445,8 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
         `;
       }
     } else if (activeTab === 'cards') {
-      // Card view HTML
-      let cardsHTML = '<div class="cards-grid">';
+      // Card view HTML - use different container when one per page
+      let cardsHTML = onePatientPerPage ? '<div class="cards-single-page">' : '<div class="cards-grid">';
       patients.forEach((patient, idx) => {
         let cardContent = '';
         
@@ -1532,16 +1532,32 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
           `;
         }
         
-        cardsHTML += `
-          <div class="patient-card${onePatientPerPage ? ' patient-page-wrapper' : ''}">
-            <div class="card-header">
-              <span class="patient-number">${idx + 1}</span>
-              <span class="patient-name">${patient.name || 'Unnamed'}</span>
-              ${patient.bed ? `<span class="patient-bed">Bed: ${patient.bed}</span>` : ''}
+        // For one per page mode, wrap the card in a page wrapper div
+        if (onePatientPerPage) {
+          cardsHTML += `
+            <div class="patient-page-wrapper">
+              <div class="patient-card patient-card-fullpage">
+                <div class="card-header">
+                  <span class="patient-number">${idx + 1}</span>
+                  <span class="patient-name">${patient.name || 'Unnamed'}</span>
+                  ${patient.bed ? `<span class="patient-bed">Bed: ${patient.bed}</span>` : ''}
+                </div>
+                <div class="card-body">${cardContent}</div>
+              </div>
             </div>
-            <div class="card-body">${cardContent}</div>
-          </div>
-        `;
+          `;
+        } else {
+          cardsHTML += `
+            <div class="patient-card">
+              <div class="card-header">
+                <span class="patient-number">${idx + 1}</span>
+                <span class="patient-name">${patient.name || 'Unnamed'}</span>
+                ${patient.bed ? `<span class="patient-bed">Bed: ${patient.bed}</span>` : ''}
+              </div>
+              <div class="card-body">${cardContent}</div>
+            </div>
+          `;
+        }
       });
       cardsHTML += '</div>';
       contentHTML = cardsHTML;
@@ -2112,6 +2128,30 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
               word-wrap: break-word;
             }
             ${onePatientPerPage ? `
+            /* Single page container - no grid, just stacked */
+            .cards-single-page {
+              display: block;
+            }
+            .cards-single-page .patient-page-wrapper {
+              display: block;
+              width: 100%;
+              height: auto;
+              overflow: visible;
+            }
+            .cards-single-page .patient-card-fullpage {
+              width: 100%;
+              margin: 0;
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+            }
+            .cards-single-page .patient-card-fullpage .card-body {
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+            }
+            .cards-single-page .patient-card-fullpage .systems-grid {
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+            }
             .cards-grid {
               display: block;
             }
@@ -2148,10 +2188,29 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
                 break-inside: avoid !important;
                 height: auto;
                 min-height: 0;
+                display: block !important;
+                overflow: visible !important;
               }
               .patient-page-wrapper:last-child {
                 page-break-after: auto !important;
                 break-after: auto !important;
+              }
+              .patient-card-fullpage {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                display: block !important;
+                overflow: visible !important;
+              }
+              .patient-card-fullpage .card-body {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+              }
+              .patient-card-fullpage .card-body > * {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+              }
+              .cards-single-page {
+                display: block !important;
               }
               .report-header {
                 page-break-after: avoid;
