@@ -31,7 +31,13 @@ import {
   Square,
   Bookmark,
   Plus,
-  Check
+  Check,
+  Eye,
+  ExternalLink,
+  Upload,
+  FileJson,
+  Filter,
+  Users
 } from "lucide-react";
 import { useRef, useState, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -67,6 +73,8 @@ interface PrintExportModalProps {
   patients: Patient[];
   patientTodos?: PatientTodosMap;
   onUpdatePatient?: (id: string, field: string, value: string) => void;
+  totalPatientCount?: number; // Total patients before filtering
+  isFiltered?: boolean; // Whether the patient list is filtered
 }
 
 const systemLabels = SYSTEM_LABELS_SHORT;
@@ -186,7 +194,7 @@ const cleanInlineStyles = (html: string): string => {
   return doc.body.innerHTML;
 };
 
-export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = {}, onUpdatePatient }: PrintExportModalProps) => {
+export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = {}, onUpdatePatient, totalPatientCount, isFiltered = false }: PrintExportModalProps) => {
   const tableRef = useRef<HTMLDivElement>(null);
   const cardsRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -373,6 +381,67 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
       description: "The preset has been removed."
     });
   }, [toast]);
+
+  // Export preset to JSON file
+  const exportPreset = useCallback((preset: PrintPreset) => {
+    const exportData = {
+      ...preset,
+      exportedAt: new Date().toISOString(),
+      version: '1.0'
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `print-preset-${preset.name.toLowerCase().replace(/\s+/g, '-')}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Preset exported",
+      description: `"${preset.name}" saved as JSON file.`
+    });
+  }, [toast]);
+
+  // Import preset from JSON file
+  const importPreset = useCallback((file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target?.result as string);
+        if (!data.name || !data.columns) {
+          throw new Error('Invalid preset format');
+        }
+        const newPreset: PrintPreset = {
+          id: Date.now().toString(),
+          name: data.name + (customPresets.some(p => p.name === data.name) ? ' (imported)' : ''),
+          columns: data.columns,
+          combinedColumns: data.combinedColumns || [],
+          printOrientation: data.printOrientation || 'portrait',
+          printFontSize: data.printFontSize || 9,
+          printFontFamily: data.printFontFamily || 'system',
+          onePatientPerPage: data.onePatientPerPage || false,
+          autoFitFontSize: data.autoFitFontSize || false,
+          columnWidths: data.columnWidths || defaultColumnWidths,
+          createdAt: new Date().toISOString()
+        };
+        setCustomPresets(prev => [...prev, newPreset]);
+        toast({
+          title: "Preset imported",
+          description: `"${newPreset.name}" has been added.`
+        });
+      } catch (error) {
+        toast({
+          title: "Import failed",
+          description: "The file could not be parsed as a valid preset.",
+          variant: "destructive"
+        });
+      }
+    };
+    reader.readAsText(file);
+  }, [customPresets, toast]);
 
   // Font family options
   const fontFamilies = [
@@ -1695,6 +1764,260 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
     
     return contentHTML;
   };
+
+  // Export current settings as JSON (unified with print modal selections)
+  const exportCurrentAsJSON = useCallback(() => {
+    const exportData = {
+      exportedAt: new Date().toISOString(),
+      patientCount: patients.length,
+      columns: columns.filter(c => c.enabled).map(c => c.key),
+      combinedColumns: combinedColumns,
+      isFiltered: isFiltered,
+      totalPatients: totalPatientCount || patients.length,
+      data: patients.map(patient => {
+        const row: Record<string, unknown> = {};
+        
+        if (isColumnEnabled("patient")) {
+          row.patientName = patient.name || "Unnamed";
+          row.bed = patient.bed;
+        }
+        
+        // Handle column combinations
+        const allContentCombo = combinedColumns.includes('allContent');
+        const summaryEventsCombo = combinedColumns.includes('summaryEvents');
+        const imagingLabsCombo = combinedColumns.includes('imagingLabs');
+        const systemsReviewCombo = combinedColumns.includes('systemsReview');
+        
+        if (allContentCombo) {
+          const allClinical: Record<string, string> = {};
+          if (isColumnEnabled("clinicalSummary")) allClinical.clinicalSummary = stripHtml(patient.clinicalSummary);
+          if (isColumnEnabled("intervalEvents")) allClinical.intervalEvents = stripHtml(patient.intervalEvents);
+          if (isColumnEnabled("imaging")) allClinical.imaging = stripHtml(patient.imaging);
+          if (isColumnEnabled("labs")) allClinical.labs = stripHtml(patient.labs);
+          row.allClinicalData = allClinical;
+        } else {
+          if (summaryEventsCombo) {
+            const summaryEvents: Record<string, string> = {};
+            if (isColumnEnabled("clinicalSummary")) summaryEvents.clinicalSummary = stripHtml(patient.clinicalSummary);
+            if (isColumnEnabled("intervalEvents")) summaryEvents.intervalEvents = stripHtml(patient.intervalEvents);
+            row.summaryAndEvents = summaryEvents;
+          } else {
+            if (isColumnEnabled("clinicalSummary")) row.clinicalSummary = stripHtml(patient.clinicalSummary);
+            if (isColumnEnabled("intervalEvents")) row.intervalEvents = stripHtml(patient.intervalEvents);
+          }
+          
+          if (imagingLabsCombo) {
+            const imagingLabs: Record<string, string> = {};
+            if (isColumnEnabled("imaging")) imagingLabs.imaging = stripHtml(patient.imaging);
+            if (isColumnEnabled("labs")) imagingLabs.labs = stripHtml(patient.labs);
+            row.imagingAndLabs = imagingLabs;
+          } else {
+            if (isColumnEnabled("imaging")) row.imaging = stripHtml(patient.imaging);
+            if (isColumnEnabled("labs")) row.labs = stripHtml(patient.labs);
+          }
+        }
+        
+        if (systemsReviewCombo) {
+          const systemsReview: Record<string, string> = {};
+          systemKeys.forEach(key => {
+            if (isColumnEnabled(`systems.${key}`)) {
+              systemsReview[systemLabels[key]] = stripHtml(patient.systems[key as keyof typeof patient.systems]);
+            }
+          });
+          row.systemsReview = systemsReview;
+        } else {
+          systemKeys.forEach(key => {
+            if (isColumnEnabled(`systems.${key}`)) {
+              row[`system_${key}`] = stripHtml(patient.systems[key as keyof typeof patient.systems]);
+            }
+          });
+        }
+        
+        if (showTodosColumn) {
+          const todos = getPatientTodos(patient.id);
+          row.todos = todos.map(t => ({ content: t.content, completed: t.completed }));
+        }
+        
+        if (isColumnEnabled("notes")) {
+          row.notes = patientNotes[patient.id] || "";
+        }
+        
+        return row;
+      })
+    };
+    
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `patient-rounding-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "JSON Export Complete",
+      description: `Exported ${patients.length} patients with selected columns.`
+    });
+  }, [patients, columns, combinedColumns, showTodosColumn, patientNotes, toast, isColumnEnabled, getPatientTodos, isFiltered, totalPatientCount]);
+
+  // Handle opening preview in new window without print dialog
+  const handlePreviewInNewWindow = useCallback(() => {
+    const previewWindow = window.open('', '_blank');
+    if (!previewWindow) {
+      toast({
+        title: "Preview Error",
+        description: "Could not open preview window. Please check your popup blocker.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const fontCSS = getFontFamilyCSS();
+    const baseFontSize = autoFitFontSize && onePatientPerPage ? getEffectiveFontSize() : printFontSize;
+    const headerFontSize = Math.max(baseFontSize + 6, 14);
+    const smallerFontSize = Math.max(baseFontSize - 1, 7);
+    
+    const baseViewLabel = activeTab === 'table' ? 'Dense Table View' : activeTab === 'cards' ? 'Card View' : 'Detailed List View';
+    const autoFitLabel = autoFitFontSize && onePatientPerPage ? ` (Auto-fit: ${baseFontSize}px)` : '';
+    const viewLabel = onePatientPerPage ? `${baseViewLabel} (One Per Page)${autoFitLabel}` : baseViewLabel;
+    const dateStr = new Date().toLocaleDateString('en-US', { 
+      weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' 
+    });
+    const timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    
+    // Write full styled HTML without auto-triggering print
+    previewWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Patient Rounding Report - Preview</title>
+          <style>
+            @page {
+              size: ${printOrientation};
+              margin: 0.5in;
+            }
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { 
+              font-family: ${fontCSS}; 
+              font-size: ${baseFontSize}px; 
+              line-height: 1.4; 
+              color: #1a1a1a; 
+              padding: 20px;
+              background: #f5f5f5;
+            }
+            .preview-toolbar {
+              background: #1e40af;
+              color: white;
+              padding: 12px 20px;
+              margin: -20px -20px 20px -20px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            }
+            .preview-toolbar button {
+              background: white;
+              color: #1e40af;
+              border: none;
+              padding: 8px 16px;
+              border-radius: 4px;
+              cursor: pointer;
+              font-weight: 600;
+              margin-left: 8px;
+            }
+            .preview-toolbar button:hover {
+              background: #e0e7ff;
+            }
+            .content-area {
+              background: white;
+              padding: 20px;
+              border-radius: 8px;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            }
+            body *, body *[style] {
+              font-family: ${fontCSS} !important;
+              font-size: inherit !important;
+              line-height: inherit !important;
+            }
+            .report-header {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 16px;
+              border-bottom: 3px solid #1e40af;
+              padding-bottom: 12px;
+            }
+            .report-title {
+              font-size: ${headerFontSize}px;
+              font-weight: 700;
+              color: #1e40af;
+            }
+            .report-subtitle {
+              font-size: ${smallerFontSize}px;
+              color: #6b7280;
+              margin-top: 4px;
+            }
+            .data-table {
+              width: 100%;
+              border-collapse: collapse;
+            }
+            .data-table th {
+              background: #1e40af;
+              color: #fff;
+              padding: 10px 8px;
+            }
+            .data-table td {
+              padding: 8px;
+              border: 1px solid #d1d5db;
+              vertical-align: top;
+            }
+            .patient-card, .patient-item {
+              border: 2px solid #1e40af;
+              margin-bottom: 16px;
+              border-radius: 8px;
+              overflow: hidden;
+            }
+            .card-header, .item-header {
+              background: #1e40af;
+              color: white;
+              padding: 12px 16px;
+            }
+            @media print {
+              .preview-toolbar { display: none !important; }
+              body { background: white; padding: 0; }
+              .content-area { box-shadow: none; padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="preview-toolbar">
+            <div>
+              <strong>Preview Mode</strong> - ${viewLabel}${isFiltered ? ' (Filtered: ' + patients.length + ' of ' + (totalPatientCount || patients.length) + ')' : ''}
+            </div>
+            <div>
+              <button onclick="window.print()">🖨️ Print</button>
+              <button onclick="window.close()">✕ Close</button>
+            </div>
+          </div>
+          <div class="content-area">
+            <div class="report-header">
+              <div>
+                <div class="report-title">🏥 Patient Rounding Report</div>
+                <div class="report-subtitle">${viewLabel}${isFiltered ? ' (Filtered)' : ''}</div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-weight: 600;">${dateStr}</div>
+                <div style="font-size: ${smallerFontSize}px; color: #6b7280;">${timeStr} • ${patients.length} patients</div>
+              </div>
+            </div>
+            ${generatePrintHTML()}
+          </div>
+        </body>
+      </html>
+    `);
+    previewWindow.document.close();
+  }, [activeTab, autoFitFontSize, onePatientPerPage, printFontSize, printOrientation, patients, isFiltered, totalPatientCount, getEffectiveFontSize, getFontFamilyCSS, generatePrintHTML, toast]);
 
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
@@ -3215,6 +3538,16 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
           </DialogTitle>
         </DialogHeader>
 
+        {/* Patient Count Indicator */}
+        {isFiltered && (
+          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-2">
+            <Filter className="h-4 w-4 text-amber-600" />
+            <span className="text-sm text-amber-700">
+              <strong>Filtered:</strong> Showing {patients.length} of {totalPatientCount || patients.length} patients
+            </span>
+          </div>
+        )}
+
         {/* Export buttons */}
         <div className="flex flex-wrap gap-2 items-center border-b pb-3 mb-2">
           <span className="text-sm font-medium">Export:</span>
@@ -3225,6 +3558,10 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
           <Button variant="outline" size="sm" onClick={handleExportPDF} className="gap-2">
             <Download className="h-4 w-4 text-red-600" />
             PDF
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportCurrentAsJSON} className="gap-2">
+            <FileJson className="h-4 w-4 text-orange-500" />
+            JSON
           </Button>
           <Button variant="outline" size="sm" onClick={handleExportDOC} className="gap-2">
             <FileText className="h-4 w-4 text-blue-600" />
@@ -3237,6 +3574,14 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
           <Button variant="outline" size="sm" onClick={handleExportTXT} className="gap-2">
             <FileText className="h-4 w-4 text-gray-600" />
             Text
+          </Button>
+          
+          <div className="h-6 w-px bg-border mx-1" />
+          
+          <span className="text-sm font-medium text-muted-foreground">Preview:</span>
+          <Button variant="outline" size="sm" onClick={handlePreviewInNewWindow} className="gap-2">
+            <ExternalLink className="h-4 w-4 text-indigo-500" />
+            Open in New Window
           </Button>
         </div>
 
@@ -3266,7 +3611,7 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
               Compact Mode
             </Button>
             
-            {/* Custom presets */}
+            {/* Custom presets with export option */}
             {customPresets.map(preset => (
               <div key={preset.id} className="flex items-center gap-1">
                 <Button 
@@ -3281,8 +3626,18 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
                 <Button
                   variant="ghost"
                   size="sm"
+                  onClick={() => exportPreset(preset)}
+                  className="h-7 w-7 p-0 text-muted-foreground hover:text-primary"
+                  title="Export preset as JSON"
+                >
+                  <Download className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => deletePreset(preset.id)}
                   className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                  title="Delete preset"
                 >
                   <X className="h-3.5 w-3.5" />
                 </Button>
@@ -3356,11 +3711,31 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
               <RotateCcw className="h-3 w-3" />
               Reset All
             </Button>
+            
+            {/* Import preset */}
+            <label className="cursor-pointer">
+              <input
+                type="file"
+                accept=".json"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    importPreset(file);
+                    e.target.value = '';
+                  }
+                }}
+              />
+              <span className="inline-flex items-center gap-1 text-xs h-7 px-2 rounded-md border border-dashed border-muted-foreground/30 hover:border-primary/50 hover:bg-muted/50 transition-colors">
+                <Upload className="h-3 w-3" />
+                Import Preset
+              </span>
+            </label>
           </div>
           
           {customPresets.length > 0 && (
             <p className="text-xs text-muted-foreground">
-              {customPresets.length} saved preset{customPresets.length !== 1 ? 's' : ''} • Click to apply, × to delete
+              {customPresets.length} saved preset{customPresets.length !== 1 ? 's' : ''} • Click to apply, ↓ to export, × to delete
             </p>
           )}
         </div>
