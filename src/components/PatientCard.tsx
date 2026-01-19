@@ -14,6 +14,9 @@ import type { Patient, PatientSystems } from "@/types/patient";
 import { useSystemsConfig } from "@/hooks/useSystemsConfig";
 import { usePatientTodos } from "@/hooks/usePatientTodos";
 import { useIntervalEventsGenerator } from "@/hooks/useIntervalEventsGenerator";
+import { useSettings } from "@/contexts/SettingsContext";
+import { useChangeTracking } from "@/contexts/ChangeTrackingContext";
+
 interface PatientCardProps {
   patient: Patient;
   onUpdate: (id: string, field: string, value: unknown) => void;
@@ -21,12 +24,6 @@ interface PatientCardProps {
   onDuplicate: (id: string) => void;
   onToggleCollapse: (id: string) => void;
   autotexts?: AutoText[];
-  globalFontSize?: number;
-  changeTracking?: {
-    enabled: boolean;
-    wrapWithMarkup: (text: string) => string;
-  } | null;
-  todosAlwaysVisible?: boolean;
 }
 
 export const PatientCard = ({ 
@@ -36,10 +33,10 @@ export const PatientCard = ({
   onDuplicate, 
   onToggleCollapse,
   autotexts = defaultAutotexts,
-  globalFontSize = 14,
-  changeTracking = null,
-  todosAlwaysVisible = false
 }: PatientCardProps) => {
+  const { globalFontSize, todosAlwaysVisible } = useSettings();
+  const changeTracking = useChangeTracking();
+  
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [showSystemsConfig, setShowSystemsConfig] = useState(false);
   const { todos, generating, addTodo, toggleTodo, deleteTodo, generateTodos } = usePatientTodos(patient.id);
