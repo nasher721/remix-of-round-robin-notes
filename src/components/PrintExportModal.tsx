@@ -4043,18 +4043,35 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
                         {(() => {
                           const systemsComboActive = combinedColumns.includes('systemsReview') && enabledSystemKeys.length > 0;
                           if (systemsComboActive) {
+                            // Multi-column layout for Systems Review - flows to adjacent columns, keeps each system intact
                             return (
                               <td className="border border-border p-2 align-top">
-                                {enabledSystemKeys.map(key => {
-                                  const value = patient.systems[key as keyof typeof patient.systems];
-                                  if (!value) return null;
-                                  return (
-                                    <div key={key} className="mb-1">
-                                      <strong className="text-primary">{systemLabels[key]}:</strong>{' '}
-                                      <span dangerouslySetInnerHTML={{ __html: cleanInlineStyles(value) }} />
-                                    </div>
-                                  );
-                                })}
+                                <div 
+                                  className="systems-review-columns"
+                                  style={{
+                                    columnCount: 2,
+                                    columnGap: '1rem',
+                                    columnFill: 'auto',
+                                  }}
+                                >
+                                  {enabledSystemKeys.map(key => {
+                                    const value = patient.systems[key as keyof typeof patient.systems];
+                                    if (!value) return null;
+                                    return (
+                                      <div 
+                                        key={key} 
+                                        className="mb-2 break-inside-avoid"
+                                        style={{
+                                          breakInside: 'avoid',
+                                          pageBreakInside: 'avoid',
+                                        }}
+                                      >
+                                        <strong className="text-primary">{systemLabels[key]}:</strong>{' '}
+                                        <span dangerouslySetInnerHTML={{ __html: cleanInlineStyles(value) }} />
+                                      </div>
+                                    );
+                                  })}
+                                </div>
                               </td>
                             );
                           }
