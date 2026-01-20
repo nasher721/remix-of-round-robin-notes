@@ -1,17 +1,13 @@
-import { createRoot } from "react-dom/client";
-import { StrictMode } from "react";
+import * as React from "react";
+import * as ReactDOM from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
 // Register service worker outside of React to avoid HMR issues
-const registerServiceWorker = async () => {
-  if ('serviceWorker' in navigator) {
-    try {
-      const registration = await navigator.serviceWorker.register('/sw.js', {
-        scope: '/',
-      });
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js', { scope: '/' })
+    .then((registration) => {
       console.log('[App] Service Worker registered:', registration.scope);
-      
       registration.addEventListener('updatefound', () => {
         const newWorker = registration.installing;
         if (newWorker) {
@@ -22,17 +18,17 @@ const registerServiceWorker = async () => {
           });
         }
       });
-    } catch (error) {
+    })
+    .catch((error) => {
       console.error('[App] Service Worker registration failed:', error);
-    }
-  }
-};
+    });
+}
 
-// Register service worker immediately
-registerServiceWorker();
+const rootElement = document.getElementById("root");
+if (!rootElement) throw new Error("Root element not found");
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
+ReactDOM.createRoot(rootElement).render(
+  <React.StrictMode>
     <App />
-  </StrictMode>
+  </React.StrictMode>
 );
