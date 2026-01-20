@@ -1,3 +1,4 @@
+import * as React from "react";
 import type { Patient } from "@/types/patient";
 import type { PatientTodo } from "@/types/todo";
 import { SYSTEM_LABELS_SHORT, SYSTEM_KEYS } from "@/constants/systems";
@@ -39,7 +40,6 @@ import {
   Filter,
   Users
 } from "lucide-react";
-import { useRef, useState, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
@@ -195,13 +195,13 @@ const cleanInlineStyles = (html: string): string => {
 };
 
 export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = {}, onUpdatePatient, totalPatientCount, isFiltered = false }: PrintExportModalProps) => {
-  const tableRef = useRef<HTMLDivElement>(null);
-  const cardsRef = useRef<HTMLDivElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
-  const fullPreviewRef = useRef<HTMLDivElement>(null);
-  const [expandedCell, setExpandedCell] = useState<ExpandedCell | null>(null);
-  const [editingCell, setEditingCell] = useState<ExpandedCell | null>(null);
-  const [editValue, setEditValue] = useState("");
+  const tableRef = React.useRef<HTMLDivElement>(null);
+  const cardsRef = React.useRef<HTMLDivElement>(null);
+  const listRef = React.useRef<HTMLDivElement>(null);
+  const fullPreviewRef = React.useRef<HTMLDivElement>(null);
+  const [expandedCell, setExpandedCell] = React.useState<ExpandedCell | null>(null);
+  const [editingCell, setEditingCell] = React.useState<ExpandedCell | null>(null);
+  const [editValue, setEditValue] = React.useState("");
   const defaultColumnWidths: ColumnWidthsType = {
     patient: 100,
     summary: 150,
@@ -220,7 +220,7 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
     'systems.skinLines': 90,
     'systems.dispo': 90,
   };
-  const [columnWidths, setColumnWidths] = useState<ColumnWidthsType>(() => {
+  const [columnWidths, setColumnWidths] = React.useState<ColumnWidthsType>(() => {
     const saved = localStorage.getItem('printColumnWidths');
     if (saved) {
       try {
@@ -232,9 +232,9 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
     }
     return defaultColumnWidths;
   });
-  const [columnWidthsOpen, setColumnWidthsOpen] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [columns, setColumns] = useState<ColumnConfig[]>(() => {
+  const [columnWidthsOpen, setColumnWidthsOpen] = React.useState(false);
+  const [isEditMode, setIsEditMode] = React.useState(false);
+  const [columns, setColumns] = React.useState<ColumnConfig[]>(() => {
     const saved = localStorage.getItem('printColumnPrefs');
     if (saved) {
       try {
@@ -250,79 +250,79 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
     }
     return defaultColumns;
   });
-  const [patientNotes] = useState<Record<string, string>>({});
-  const [columnsOpen, setColumnsOpen] = useState(false);
-  const [resizing, setResizing] = useState<{ column: string; startX: number; startWidth: number } | null>(null);
-  const [isFullPreview, setIsFullPreview] = useState(false);
-  const [activeTab, setActiveTab] = useState("table");
-  const [printFontSize, setPrintFontSize] = useState(() => {
+  const [patientNotes] = React.useState<Record<string, string>>({});
+  const [columnsOpen, setColumnsOpen] = React.useState(false);
+  const [resizing, setResizing] = React.useState<{ column: string; startX: number; startWidth: number } | null>(null);
+  const [isFullPreview, setIsFullPreview] = React.useState(false);
+  const [activeTab, setActiveTab] = React.useState("table");
+  const [printFontSize, setPrintFontSize] = React.useState(() => {
     const saved = localStorage.getItem('printFontSize');
     return saved ? parseInt(saved, 10) : 9;
   });
-  const [printFontFamily, setPrintFontFamily] = useState(() => {
+  const [printFontFamily, setPrintFontFamily] = React.useState(() => {
     return localStorage.getItem('printFontFamily') || 'system';
   });
-  const [typographyOpen, setTypographyOpen] = useState(false);
-  const [onePatientPerPage, setOnePatientPerPage] = useState(() => {
+  const [typographyOpen, setTypographyOpen] = React.useState(false);
+  const [onePatientPerPage, setOnePatientPerPage] = React.useState(() => {
     return localStorage.getItem('printOnePatientPerPage') === 'true';
   });
-  const [autoFitFontSize, setAutoFitFontSize] = useState(() => {
+  const [autoFitFontSize, setAutoFitFontSize] = React.useState(() => {
     return localStorage.getItem('printAutoFitFontSize') === 'true';
   });
-  const [combinedColumns, setCombinedColumns] = useState<string[]>(() => {
+  const [combinedColumns, setCombinedColumns] = React.useState<string[]>(() => {
     const saved = localStorage.getItem('printCombinedColumns');
     return saved ? JSON.parse(saved) : [];
   });
-  const [systemsReviewColumnCount, setSystemsReviewColumnCount] = useState<number>(() => {
+  const [systemsReviewColumnCount, setSystemsReviewColumnCount] = React.useState<number>(() => {
     const saved = localStorage.getItem('printSystemsReviewColumnCount');
     return saved ? parseInt(saved, 10) : 2;
   });
-  const [printOrientation, setPrintOrientation] = useState<'portrait' | 'landscape'>(() => {
+  const [printOrientation, setPrintOrientation] = React.useState<'portrait' | 'landscape'>(() => {
     return (localStorage.getItem('printOrientation') as 'portrait' | 'landscape') || 'portrait';
   });
   
   // Custom presets state
-  const [customPresets, setCustomPresets] = useState<PrintPreset[]>(() => {
+  const [customPresets, setCustomPresets] = React.useState<PrintPreset[]>(() => {
     const saved = localStorage.getItem('printCustomPresets');
     return saved ? JSON.parse(saved) : [];
   });
-  const [newPresetName, setNewPresetName] = useState('');
-  const [showSavePreset, setShowSavePreset] = useState(false);
+  const [newPresetName, setNewPresetName] = React.useState('');
+  const [showSavePreset, setShowSavePreset] = React.useState(false);
   
   const { toast } = useToast();
 
   // Save one patient per page preference
-  useEffect(() => {
+  React.useEffect(() => {
     localStorage.setItem('printOnePatientPerPage', onePatientPerPage.toString());
   }, [onePatientPerPage]);
 
   // Save auto-fit preference
-  useEffect(() => {
+  React.useEffect(() => {
     localStorage.setItem('printAutoFitFontSize', autoFitFontSize.toString());
   }, [autoFitFontSize]);
 
   // Save combined columns preference
-  useEffect(() => {
+  React.useEffect(() => {
     localStorage.setItem('printCombinedColumns', JSON.stringify(combinedColumns));
   }, [combinedColumns]);
 
   // Save systems review column count preference
-  useEffect(() => {
+  React.useEffect(() => {
     localStorage.setItem('printSystemsReviewColumnCount', systemsReviewColumnCount.toString());
   }, [systemsReviewColumnCount]);
 
   // Save print orientation preference
-  useEffect(() => {
+  React.useEffect(() => {
     localStorage.setItem('printOrientation', printOrientation);
   }, [printOrientation]);
 
   // Save custom presets
-  useEffect(() => {
+  React.useEffect(() => {
     localStorage.setItem('printCustomPresets', JSON.stringify(customPresets));
   }, [customPresets]);
 
   // Save current settings as a preset
-  const saveCurrentAsPreset = useCallback(() => {
+  const saveCurrentAsPreset = React.useCallback(() => {
     if (!newPresetName.trim()) {
       toast({
         title: "Name required",
@@ -357,7 +357,7 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
   }, [newPresetName, columns, combinedColumns, printOrientation, printFontSize, printFontFamily, onePatientPerPage, autoFitFontSize, columnWidths, toast]);
 
   // Load a preset
-  const loadPreset = useCallback((preset: PrintPreset) => {
+  const loadPreset = React.useCallback((preset: PrintPreset) => {
     setColumns(preset.columns);
     setCombinedColumns(preset.combinedColumns);
     setPrintOrientation(preset.printOrientation);
@@ -374,7 +374,7 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
   }, [toast]);
 
   // Delete a preset
-  const deletePreset = useCallback((presetId: string) => {
+  const deletePreset = React.useCallback((presetId: string) => {
     setCustomPresets(prev => prev.filter(p => p.id !== presetId));
     toast({
       title: "Preset deleted",
@@ -383,7 +383,7 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
   }, [toast]);
 
   // Export preset to JSON file
-  const exportPreset = useCallback((preset: PrintPreset) => {
+  const exportPreset = React.useCallback((preset: PrintPreset) => {
     const exportData = {
       ...preset,
       exportedAt: new Date().toISOString(),
@@ -406,7 +406,7 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
   }, [toast]);
 
   // Import preset from JSON file
-  const importPreset = useCallback((file: File) => {
+  const importPreset = React.useCallback((file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
@@ -457,35 +457,35 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
   const getFontFamilyCSS = () => fontFamilies.find(f => f.value === printFontFamily)?.css || fontFamilies[0].css;
 
   // Save typography preferences
-  useEffect(() => {
+  React.useEffect(() => {
     localStorage.setItem('printFontSize', printFontSize.toString());
     localStorage.setItem('printFontFamily', printFontFamily);
   }, [printFontSize, printFontFamily]);
 
   // Save column widths preference
-  useEffect(() => {
+  React.useEffect(() => {
     localStorage.setItem('printColumnWidths', JSON.stringify(columnWidths));
   }, [columnWidths]);
 
   // Drag-to-resize handlers
-  const handleResizeStart = useCallback((column: string, startWidth: number, e: React.MouseEvent) => {
+  const handleResizeStart = React.useCallback((column: string, startWidth: number, e: React.MouseEvent) => {
     e.preventDefault();
     setResizing({ column, startX: e.clientX, startWidth });
   }, []);
 
-  const handleResizeMove = useCallback((e: MouseEvent) => {
+  const handleResizeMove = React.useCallback((e: MouseEvent) => {
     if (!resizing) return;
     const diff = e.clientX - resizing.startX;
     const newWidth = Math.max(50, Math.min(400, resizing.startWidth + diff));
     setColumnWidths(prev => ({ ...prev, [resizing.column]: newWidth } as ColumnWidthsType));
   }, [resizing]);
 
-  const handleResizeEnd = useCallback(() => {
+  const handleResizeEnd = React.useCallback(() => {
     setResizing(null);
   }, []);
 
   // Attach/detach mouse events for resizing
-  useEffect(() => {
+  React.useEffect(() => {
     if (resizing) {
       document.addEventListener('mousemove', handleResizeMove);
       document.addEventListener('mouseup', handleResizeEnd);
@@ -558,7 +558,7 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
   };
 
   // Calculate optimal font size for a patient based on content length
-  const calculateOptimalFontSize = useCallback((patient: Patient): number => {
+  const calculateOptimalFontSize = React.useCallback((patient: Patient): number => {
     // Estimate content length (characters)
     let totalContent = '';
     if (isColumnEnabled("clinicalSummary")) totalContent += stripHtml(patient.clinicalSummary);
@@ -594,7 +594,7 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
   }, [activeTab, showTodosColumn, isColumnEnabled]);
 
   // Get the global minimum font size across all patients (for consistent sizing)
-  const getAutoFitGlobalFontSize = useCallback((): number => {
+  const getAutoFitGlobalFontSize = React.useCallback((): number => {
     if (!autoFitFontSize || !onePatientPerPage || patients.length === 0) {
       return printFontSize;
     }
@@ -605,7 +605,7 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
   }, [autoFitFontSize, onePatientPerPage, patients, printFontSize, calculateOptimalFontSize]);
 
   // Get effective font size (auto-calculated or manual)
-  const getEffectiveFontSize = useCallback((): number => {
+  const getEffectiveFontSize = React.useCallback((): number => {
     if (autoFitFontSize && onePatientPerPage) {
       return getAutoFitGlobalFontSize();
     }
@@ -1766,7 +1766,7 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
   };
 
   // Export current settings as JSON (unified with print modal selections)
-  const exportCurrentAsJSON = useCallback(() => {
+  const exportCurrentAsJSON = React.useCallback(() => {
     const exportData = {
       exportedAt: new Date().toISOString(),
       patientCount: patients.length,
@@ -1863,7 +1863,7 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
   }, [patients, columns, combinedColumns, showTodosColumn, patientNotes, toast, isColumnEnabled, getPatientTodos, isFiltered, totalPatientCount]);
 
   // Handle opening preview in new window without print dialog
-  const handlePreviewInNewWindow = useCallback(() => {
+  const handlePreviewInNewWindow = React.useCallback(() => {
     const previewWindow = window.open('', '_blank');
     if (!previewWindow) {
       toast({

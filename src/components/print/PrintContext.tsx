@@ -1,4 +1,4 @@
-import { createContext, useContext, ReactNode } from 'react';
+import * as React from 'react';
 import { usePrintState } from './usePrintState';
 import type { Patient } from '@/types/patient';
 import type { PatientTodo } from '@/types/todo';
@@ -16,10 +16,10 @@ interface PrintContextValue extends ReturnType<typeof usePrintState> {
   getPatientTodos: (patientId: string) => PatientTodo[];
 }
 
-const PrintContext = createContext<PrintContextValue | null>(null);
+const PrintContext = React.createContext<PrintContextValue | null>(null);
 
 export const usePrintContext = () => {
-  const context = useContext(PrintContext);
+  const context = React.useContext(PrintContext);
   if (!context) {
     throw new Error('usePrintContext must be used within a PrintContextProvider');
   }
@@ -27,7 +27,7 @@ export const usePrintContext = () => {
 };
 
 interface PrintContextProviderProps {
-  children: ReactNode;
+  children: React.ReactNode;
   patients: Patient[];
   patientTodos: PatientTodosMap;
   activeTab: string;
