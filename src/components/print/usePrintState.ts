@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import * as React from 'react';
 import type { ColumnConfig, ColumnWidthsType, PrintPreset } from './types';
 import { defaultColumns, defaultColumnWidths, fontFamilies } from './constants';
 import { useToast } from '@/hooks/use-toast';
@@ -7,7 +7,7 @@ import { STORAGE_KEYS, DEFAULT_CONFIG } from '@/constants/config';
 export const usePrintState = () => {
   const { toast } = useToast();
   
-  const [columnWidths, setColumnWidths] = useState<ColumnWidthsType>(() => {
+  const [columnWidths, setColumnWidths] = React.useState<ColumnWidthsType>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.PRINT_COLUMN_WIDTHS);
     if (saved) {
       try {
@@ -20,7 +20,7 @@ export const usePrintState = () => {
     return defaultColumnWidths;
   });
   
-  const [columns, setColumns] = useState<ColumnConfig[]>(() => {
+  const [columns, setColumns] = React.useState<ColumnConfig[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.PRINT_COLUMN_PREFS);
     if (saved) {
       try {
@@ -36,81 +36,81 @@ export const usePrintState = () => {
     return defaultColumns;
   });
   
-  const [printFontSize, setPrintFontSize] = useState(() => {
+  const [printFontSize, setPrintFontSize] = React.useState(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.PRINT_FONT_SIZE);
     return saved ? parseInt(saved, 10) : DEFAULT_CONFIG.PRINT_FONT_SIZE;
   });
   
-  const [printFontFamily, setPrintFontFamily] = useState(() => {
+  const [printFontFamily, setPrintFontFamily] = React.useState(() => {
     return localStorage.getItem(STORAGE_KEYS.PRINT_FONT_FAMILY) || DEFAULT_CONFIG.PRINT_FONT_FAMILY;
   });
   
-  const [onePatientPerPage, setOnePatientPerPage] = useState(() => {
+  const [onePatientPerPage, setOnePatientPerPage] = React.useState(() => {
     return localStorage.getItem(STORAGE_KEYS.PRINT_ONE_PATIENT_PER_PAGE) === 'true';
   });
   
-  const [autoFitFontSize, setAutoFitFontSize] = useState(() => {
+  const [autoFitFontSize, setAutoFitFontSize] = React.useState(() => {
     return localStorage.getItem(STORAGE_KEYS.PRINT_AUTO_FIT_FONT_SIZE) === 'true';
   });
   
-  const [combinedColumns, setCombinedColumns] = useState<string[]>(() => {
+  const [combinedColumns, setCombinedColumns] = React.useState<string[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.PRINT_COMBINED_COLUMNS);
     return saved ? JSON.parse(saved) : [];
   });
   
-  const [systemsReviewColumnCount, setSystemsReviewColumnCount] = useState<number>(() => {
+  const [systemsReviewColumnCount, setSystemsReviewColumnCount] = React.useState<number>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.PRINT_SYSTEMS_REVIEW_COLUMN_COUNT);
     return saved ? parseInt(saved, 10) : DEFAULT_CONFIG.SYSTEMS_REVIEW_COLUMN_COUNT;
   });
   
-  const [printOrientation, setPrintOrientation] = useState<'portrait' | 'landscape'>(() => {
+  const [printOrientation, setPrintOrientation] = React.useState<'portrait' | 'landscape'>(() => {
     return (localStorage.getItem(STORAGE_KEYS.PRINT_ORIENTATION) as 'portrait' | 'landscape') || DEFAULT_CONFIG.PRINT_ORIENTATION;
   });
   
-  const [customPresets, setCustomPresets] = useState<PrintPreset[]>(() => {
+  const [customPresets, setCustomPresets] = React.useState<PrintPreset[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.PRINT_CUSTOM_PRESETS);
     return saved ? JSON.parse(saved) : [];
   });
 
   // Persist preferences
-  useEffect(() => {
+  React.useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.PRINT_ONE_PATIENT_PER_PAGE, onePatientPerPage.toString());
   }, [onePatientPerPage]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.PRINT_AUTO_FIT_FONT_SIZE, autoFitFontSize.toString());
   }, [autoFitFontSize]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.PRINT_COMBINED_COLUMNS, JSON.stringify(combinedColumns));
   }, [combinedColumns]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.PRINT_SYSTEMS_REVIEW_COLUMN_COUNT, systemsReviewColumnCount.toString());
   }, [systemsReviewColumnCount]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.PRINT_ORIENTATION, printOrientation);
   }, [printOrientation]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.PRINT_CUSTOM_PRESETS, JSON.stringify(customPresets));
   }, [customPresets]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.PRINT_FONT_SIZE, printFontSize.toString());
     localStorage.setItem(STORAGE_KEYS.PRINT_FONT_FAMILY, printFontFamily);
   }, [printFontSize, printFontFamily]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.PRINT_COLUMN_WIDTHS, JSON.stringify(columnWidths));
   }, [columnWidths]);
 
-  const getFontFamilyCSS = useCallback(() => {
+  const getFontFamilyCSS = React.useCallback(() => {
     return fontFamilies.find(f => f.value === printFontFamily)?.css || fontFamilies[0].css;
   }, [printFontFamily]);
 
-  const toggleColumn = useCallback((key: string) => {
+  const toggleColumn = React.useCallback((key: string) => {
     setColumns(prev => {
       const updated = prev.map(col => 
         col.key === key ? { ...col, enabled: !col.enabled } : col
@@ -120,7 +120,7 @@ export const usePrintState = () => {
     });
   }, []);
 
-  const selectAllColumns = useCallback(() => {
+  const selectAllColumns = React.useCallback(() => {
     setColumns(prev => {
       const updated = prev.map(col => ({ ...col, enabled: true }));
       localStorage.setItem(STORAGE_KEYS.PRINT_COLUMN_PREFS, JSON.stringify(updated));
@@ -128,7 +128,7 @@ export const usePrintState = () => {
     });
   }, []);
 
-  const deselectAllColumns = useCallback(() => {
+  const deselectAllColumns = React.useCallback(() => {
     setColumns(prev => {
       const updated = prev.map(col => 
         col.key === "patient" ? col : { ...col, enabled: false }
@@ -138,7 +138,7 @@ export const usePrintState = () => {
     });
   }, []);
 
-  const toggleColumnCombination = useCallback((combinationKey: string) => {
+  const toggleColumnCombination = React.useCallback((combinationKey: string) => {
     setCombinedColumns(prev => {
       if (prev.includes(combinationKey)) {
         return prev.filter(k => k !== combinationKey);
@@ -148,11 +148,11 @@ export const usePrintState = () => {
     });
   }, []);
 
-  const isColumnEnabled = useCallback((key: string): boolean => {
+  const isColumnEnabled = React.useCallback((key: string): boolean => {
     return columns.find(c => c.key === key)?.enabled ?? false;
   }, [columns]);
 
-  const saveCurrentAsPreset = useCallback((name: string) => {
+  const saveCurrentAsPreset = React.useCallback((name: string) => {
     if (!name.trim()) {
       toast({
         title: "Name required",
@@ -185,7 +185,7 @@ export const usePrintState = () => {
     return true;
   }, [columns, combinedColumns, printOrientation, printFontSize, printFontFamily, onePatientPerPage, autoFitFontSize, columnWidths, toast]);
 
-  const loadPreset = useCallback((preset: PrintPreset) => {
+  const loadPreset = React.useCallback((preset: PrintPreset) => {
     setColumns(preset.columns);
     setCombinedColumns(preset.combinedColumns);
     setPrintOrientation(preset.printOrientation);
@@ -201,7 +201,7 @@ export const usePrintState = () => {
     });
   }, [toast]);
 
-  const deletePreset = useCallback((presetId: string) => {
+  const deletePreset = React.useCallback((presetId: string) => {
     setCustomPresets(prev => prev.filter(p => p.id !== presetId));
     toast({
       title: "Preset deleted",
@@ -209,7 +209,7 @@ export const usePrintState = () => {
     });
   }, [toast]);
 
-  const exportPreset = useCallback((preset: PrintPreset) => {
+  const exportPreset = React.useCallback((preset: PrintPreset) => {
     const exportData = {
       ...preset,
       exportedAt: new Date().toISOString(),
@@ -231,7 +231,7 @@ export const usePrintState = () => {
     });
   }, [toast]);
 
-  const importPreset = useCallback((file: File) => {
+  const importPreset = React.useCallback((file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
