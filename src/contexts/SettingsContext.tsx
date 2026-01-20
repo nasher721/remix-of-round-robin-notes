@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { STORAGE_KEYS, DEFAULT_CONFIG } from '@/constants/config';
 
 export type SortBy = 'number' | 'room' | 'name';
 
@@ -24,32 +25,32 @@ interface SettingsProviderProps {
 
 export const SettingsProvider = ({ children }: SettingsProviderProps) => {
   const [globalFontSize, setGlobalFontSizeState] = useState(() => {
-    const saved = localStorage.getItem('globalFontSize');
-    return saved ? parseInt(saved, 10) : 14;
+    const saved = localStorage.getItem(STORAGE_KEYS.GLOBAL_FONT_SIZE);
+    return saved ? parseInt(saved, 10) : DEFAULT_CONFIG.GLOBAL_FONT_SIZE;
   });
 
   const [todosAlwaysVisible, setTodosAlwaysVisibleState] = useState(() => {
-    return localStorage.getItem('todosAlwaysVisible') === 'true';
+    return localStorage.getItem(STORAGE_KEYS.TODOS_ALWAYS_VISIBLE) === 'true';
   });
 
   const [sortBy, setSortByState] = useState<SortBy>(() => {
-    const saved = localStorage.getItem('patientSortBy');
-    return (saved as SortBy) || 'room';
+    const saved = localStorage.getItem(STORAGE_KEYS.PATIENT_SORT_BY);
+    return (saved as SortBy) || DEFAULT_CONFIG.DEFAULT_SORT_BY;
   });
 
   // Persist font size
   useEffect(() => {
-    localStorage.setItem('globalFontSize', String(globalFontSize));
+    localStorage.setItem(STORAGE_KEYS.GLOBAL_FONT_SIZE, String(globalFontSize));
   }, [globalFontSize]);
 
   // Persist todos visibility
   useEffect(() => {
-    localStorage.setItem('todosAlwaysVisible', String(todosAlwaysVisible));
+    localStorage.setItem(STORAGE_KEYS.TODOS_ALWAYS_VISIBLE, String(todosAlwaysVisible));
   }, [todosAlwaysVisible]);
 
   // Persist sort preference
   useEffect(() => {
-    localStorage.setItem('patientSortBy', sortBy);
+    localStorage.setItem(STORAGE_KEYS.PATIENT_SORT_BY, sortBy);
   }, [sortBy]);
 
   const setGlobalFontSize = useCallback((size: number) => {

@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 import type { Patient } from '@/types/patient';
 import type { SortBy } from '@/contexts/SettingsContext';
+import { PatientFilterType } from '@/constants/config';
 
-export type FilterType = 'all' | 'filled' | 'empty';
+// Re-export for convenience
+export { PatientFilterType } from '@/constants/config';
 
 interface UsePatientFilterOptions {
   patients: Patient[];
@@ -11,7 +13,7 @@ interface UsePatientFilterOptions {
 
 export function usePatientFilter({ patients, sortBy }: UsePatientFilterOptions) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [filter, setFilter] = useState<FilterType>('all');
+  const [filter, setFilter] = useState<PatientFilterType>(PatientFilterType.All);
 
   const filteredPatients = useMemo(() => {
     return patients
@@ -24,13 +26,13 @@ export function usePatientFilter({ patients, sortBy }: UsePatientFilterOptions) 
           patient.clinicalSummary.toLowerCase().includes(searchLower) ||
           patient.intervalEvents.toLowerCase().includes(searchLower);
 
-        if (filter === 'filled') {
+        if (filter === PatientFilterType.Filled) {
           const hasSomeContent =
             patient.clinicalSummary ||
             patient.intervalEvents ||
             Object.values(patient.systems).some((v) => v);
           return matchesSearch && hasSomeContent;
-        } else if (filter === 'empty') {
+        } else if (filter === PatientFilterType.Empty) {
           const isEmpty =
             !patient.clinicalSummary &&
             !patient.intervalEvents &&

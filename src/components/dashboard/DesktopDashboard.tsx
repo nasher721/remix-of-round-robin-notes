@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/select";
 import type { Patient } from "@/types/patient";
 import type { AutoText, Template } from "@/types/autotext";
-import type { FilterType } from "@/hooks/usePatientFilter";
+import { PatientFilterType } from "@/constants/config";
 import type { PatientTodo } from "@/types/todo";
 
 interface DesktopDashboardProps {
@@ -47,8 +47,8 @@ interface DesktopDashboardProps {
   filteredPatients: Patient[];
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  filter: FilterType;
-  setFilter: (filter: FilterType) => void;
+  filter: PatientFilterType;
+  setFilter: (filter: PatientFilterType) => void;
   autotexts: AutoText[];
   templates: Template[];
   customDictionary: Record<string, string>;
@@ -275,7 +275,7 @@ export const DesktopDashboard = ({
               />
             </div>
             <div className="flex gap-1 p-1 bg-secondary/50 rounded-lg">
-              {(['all', 'filled', 'empty'] as const).map((f) => (
+              {Object.values(PatientFilterType).map((f) => (
                 <Button
                   key={f}
                   variant={filter === f ? 'default' : 'ghost'}
@@ -283,7 +283,7 @@ export const DesktopDashboard = ({
                   size="sm"
                   className={filter === f ? '' : 'text-muted-foreground hover:text-foreground'}
                 >
-                  {f === 'all' ? 'All' : f === 'filled' ? 'With Notes' : 'Empty'}
+                  {f === PatientFilterType.All ? 'All' : f === PatientFilterType.Filled ? 'With Notes' : 'Empty'}
                 </Button>
               ))}
             </div>
