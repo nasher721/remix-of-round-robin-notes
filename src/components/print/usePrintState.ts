@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import type { ColumnConfig, ColumnWidthsType, PrintPreset } from './types';
 import { defaultColumns, defaultColumnWidths, fontFamilies } from './constants';
 import { useToast } from '@/hooks/use-toast';
+import { STORAGE_KEYS, DEFAULT_CONFIG } from '@/constants/config';
 
 export const usePrintState = () => {
   const { toast } = useToast();
   
   const [columnWidths, setColumnWidths] = useState<ColumnWidthsType>(() => {
-    const saved = localStorage.getItem('printColumnWidths');
+    const saved = localStorage.getItem(STORAGE_KEYS.PRINT_COLUMN_WIDTHS);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -20,7 +21,7 @@ export const usePrintState = () => {
   });
   
   const [columns, setColumns] = useState<ColumnConfig[]>(() => {
-    const saved = localStorage.getItem('printColumnPrefs');
+    const saved = localStorage.getItem(STORAGE_KEYS.PRINT_COLUMN_PREFS);
     if (saved) {
       try {
         const savedCols = JSON.parse(saved) as ColumnConfig[];
@@ -36,73 +37,73 @@ export const usePrintState = () => {
   });
   
   const [printFontSize, setPrintFontSize] = useState(() => {
-    const saved = localStorage.getItem('printFontSize');
-    return saved ? parseInt(saved, 10) : 9;
+    const saved = localStorage.getItem(STORAGE_KEYS.PRINT_FONT_SIZE);
+    return saved ? parseInt(saved, 10) : DEFAULT_CONFIG.PRINT_FONT_SIZE;
   });
   
   const [printFontFamily, setPrintFontFamily] = useState(() => {
-    return localStorage.getItem('printFontFamily') || 'system';
+    return localStorage.getItem(STORAGE_KEYS.PRINT_FONT_FAMILY) || DEFAULT_CONFIG.PRINT_FONT_FAMILY;
   });
   
   const [onePatientPerPage, setOnePatientPerPage] = useState(() => {
-    return localStorage.getItem('printOnePatientPerPage') === 'true';
+    return localStorage.getItem(STORAGE_KEYS.PRINT_ONE_PATIENT_PER_PAGE) === 'true';
   });
   
   const [autoFitFontSize, setAutoFitFontSize] = useState(() => {
-    return localStorage.getItem('printAutoFitFontSize') === 'true';
+    return localStorage.getItem(STORAGE_KEYS.PRINT_AUTO_FIT_FONT_SIZE) === 'true';
   });
   
   const [combinedColumns, setCombinedColumns] = useState<string[]>(() => {
-    const saved = localStorage.getItem('printCombinedColumns');
+    const saved = localStorage.getItem(STORAGE_KEYS.PRINT_COMBINED_COLUMNS);
     return saved ? JSON.parse(saved) : [];
   });
   
   const [systemsReviewColumnCount, setSystemsReviewColumnCount] = useState<number>(() => {
-    const saved = localStorage.getItem('printSystemsReviewColumnCount');
-    return saved ? parseInt(saved, 10) : 2;
+    const saved = localStorage.getItem(STORAGE_KEYS.PRINT_SYSTEMS_REVIEW_COLUMN_COUNT);
+    return saved ? parseInt(saved, 10) : DEFAULT_CONFIG.SYSTEMS_REVIEW_COLUMN_COUNT;
   });
   
   const [printOrientation, setPrintOrientation] = useState<'portrait' | 'landscape'>(() => {
-    return (localStorage.getItem('printOrientation') as 'portrait' | 'landscape') || 'portrait';
+    return (localStorage.getItem(STORAGE_KEYS.PRINT_ORIENTATION) as 'portrait' | 'landscape') || DEFAULT_CONFIG.PRINT_ORIENTATION;
   });
   
   const [customPresets, setCustomPresets] = useState<PrintPreset[]>(() => {
-    const saved = localStorage.getItem('printCustomPresets');
+    const saved = localStorage.getItem(STORAGE_KEYS.PRINT_CUSTOM_PRESETS);
     return saved ? JSON.parse(saved) : [];
   });
 
   // Persist preferences
   useEffect(() => {
-    localStorage.setItem('printOnePatientPerPage', onePatientPerPage.toString());
+    localStorage.setItem(STORAGE_KEYS.PRINT_ONE_PATIENT_PER_PAGE, onePatientPerPage.toString());
   }, [onePatientPerPage]);
 
   useEffect(() => {
-    localStorage.setItem('printAutoFitFontSize', autoFitFontSize.toString());
+    localStorage.setItem(STORAGE_KEYS.PRINT_AUTO_FIT_FONT_SIZE, autoFitFontSize.toString());
   }, [autoFitFontSize]);
 
   useEffect(() => {
-    localStorage.setItem('printCombinedColumns', JSON.stringify(combinedColumns));
+    localStorage.setItem(STORAGE_KEYS.PRINT_COMBINED_COLUMNS, JSON.stringify(combinedColumns));
   }, [combinedColumns]);
 
   useEffect(() => {
-    localStorage.setItem('printSystemsReviewColumnCount', systemsReviewColumnCount.toString());
+    localStorage.setItem(STORAGE_KEYS.PRINT_SYSTEMS_REVIEW_COLUMN_COUNT, systemsReviewColumnCount.toString());
   }, [systemsReviewColumnCount]);
 
   useEffect(() => {
-    localStorage.setItem('printOrientation', printOrientation);
+    localStorage.setItem(STORAGE_KEYS.PRINT_ORIENTATION, printOrientation);
   }, [printOrientation]);
 
   useEffect(() => {
-    localStorage.setItem('printCustomPresets', JSON.stringify(customPresets));
+    localStorage.setItem(STORAGE_KEYS.PRINT_CUSTOM_PRESETS, JSON.stringify(customPresets));
   }, [customPresets]);
 
   useEffect(() => {
-    localStorage.setItem('printFontSize', printFontSize.toString());
-    localStorage.setItem('printFontFamily', printFontFamily);
+    localStorage.setItem(STORAGE_KEYS.PRINT_FONT_SIZE, printFontSize.toString());
+    localStorage.setItem(STORAGE_KEYS.PRINT_FONT_FAMILY, printFontFamily);
   }, [printFontSize, printFontFamily]);
 
   useEffect(() => {
-    localStorage.setItem('printColumnWidths', JSON.stringify(columnWidths));
+    localStorage.setItem(STORAGE_KEYS.PRINT_COLUMN_WIDTHS, JSON.stringify(columnWidths));
   }, [columnWidths]);
 
   const getFontFamilyCSS = useCallback(() => {
@@ -114,7 +115,7 @@ export const usePrintState = () => {
       const updated = prev.map(col => 
         col.key === key ? { ...col, enabled: !col.enabled } : col
       );
-      localStorage.setItem('printColumnPrefs', JSON.stringify(updated));
+      localStorage.setItem(STORAGE_KEYS.PRINT_COLUMN_PREFS, JSON.stringify(updated));
       return updated;
     });
   }, []);
@@ -122,7 +123,7 @@ export const usePrintState = () => {
   const selectAllColumns = useCallback(() => {
     setColumns(prev => {
       const updated = prev.map(col => ({ ...col, enabled: true }));
-      localStorage.setItem('printColumnPrefs', JSON.stringify(updated));
+      localStorage.setItem(STORAGE_KEYS.PRINT_COLUMN_PREFS, JSON.stringify(updated));
       return updated;
     });
   }, []);
@@ -132,7 +133,7 @@ export const usePrintState = () => {
       const updated = prev.map(col => 
         col.key === "patient" ? col : { ...col, enabled: false }
       );
-      localStorage.setItem('printColumnPrefs', JSON.stringify(updated));
+      localStorage.setItem(STORAGE_KEYS.PRINT_COLUMN_PREFS, JSON.stringify(updated));
       return updated;
     });
   }, []);
