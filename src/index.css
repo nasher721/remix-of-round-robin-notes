@@ -388,9 +388,13 @@
 
 /* Custom scrollbar for editor text boxes - must be outside @layer for specificity */
 .editor-scroll-container {
-  overflow-y: scroll !important;
+  overflow-y: auto;
+  overflow-x: hidden;
   scrollbar-width: thin;
   scrollbar-color: hsl(var(--muted-foreground) / 0.4) transparent;
+  position: relative;
+  /* Ensure container respects document flow */
+  display: block;
 }
 
 .editor-scroll-container::-webkit-scrollbar {

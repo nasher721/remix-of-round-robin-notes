@@ -539,7 +539,7 @@ export const ImagePasteEditor = ({
   }, [value]);
 
   return (
-    <div className={cn("border-2 border-border rounded-md bg-card overflow-hidden relative", className)}>
+    <div className={cn("border-2 border-border rounded-md bg-card relative h-auto", className)}>
       {/* Toolbar */}
       <div className="flex items-center gap-1 p-1.5 border-b border-border bg-blue-50/50 flex-wrap">
         <Button
@@ -784,12 +784,12 @@ export const ImagePasteEditor = ({
         </div>
       )}
       
-      {/* Editor with scroll container */}
-      <div className="max-h-[300px] editor-scroll-container">
+      {/* Editor with scroll container - relative positioning ensures proper document flow */}
+      <div className="max-h-[300px] editor-scroll-container relative">
         <div
           ref={editorRef}
           contentEditable
-          className="p-2 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all prose prose-sm max-w-none min-h-[80px]"
+          className="p-2 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all prose prose-sm max-w-none min-h-[80px] relative"
           style={{ fontSize: `${fontSize}px` }}
           onInput={handleInput}
           onKeyDown={handleKeyDown}
