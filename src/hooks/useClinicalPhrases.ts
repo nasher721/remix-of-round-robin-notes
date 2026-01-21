@@ -402,14 +402,14 @@ export const useClinicalPhrases = () => {
         })
         .eq('id', phraseId);
 
-      // Log usage
+      // Log usage metadata only - PHI fields (input_values, inserted_content) are not stored
+      // to prevent Protected Health Information exposure in usage logs
       await supabase.from('phrase_usage_log').insert([{
         user_id: user.id,
         phrase_id: phraseId,
         patient_id: patientId,
         target_field: targetField,
-        input_values: inputValues ? JSON.parse(JSON.stringify(inputValues)) : null,
-        inserted_content: insertedContent,
+        // input_values and inserted_content intentionally omitted to protect PHI
       }]);
 
       // Update local state
