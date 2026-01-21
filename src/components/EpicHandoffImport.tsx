@@ -22,6 +22,13 @@ interface PatientSystems {
   dispo: string;
 }
 
+interface PatientMedications {
+  infusions: string[];
+  scheduled: string[];
+  prn: string[];
+  rawText?: string;
+}
+
 interface ParsedPatient {
   bed: string;
   name: string;
@@ -32,6 +39,7 @@ interface ParsedPatient {
   intervalEvents: string;
   bedStatus: string;
   systems: PatientSystems;
+  medications?: PatientMedications;
 }
 
 interface EpicHandoffImportProps {
@@ -42,6 +50,7 @@ interface EpicHandoffImportProps {
     clinicalSummary: string;
     intervalEvents: string;
     systems: PatientSystems;
+    medications?: PatientMedications;
   }>) => Promise<void>;
 }
 
@@ -367,6 +376,7 @@ export const EpicHandoffImport = ({ existingBeds, onImportPatients }: EpicHandof
         clinicalSummary: p.handoffSummary,
         intervalEvents: p.intervalEvents || '',
         systems: p.systems || defaultSystems,
+        medications: p.medications || { infusions: [], scheduled: [], prn: [] },
       }));
 
     if (patientsToImport.length === 0) {

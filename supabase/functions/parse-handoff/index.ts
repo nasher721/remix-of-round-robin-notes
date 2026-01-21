@@ -18,6 +18,13 @@ interface PatientSystems {
   dispo: string;
 }
 
+interface MedicationCategories {
+  infusions: string[];
+  scheduled: string[];
+  prn: string[];
+  rawText?: string;
+}
+
 interface ParsedPatient {
   bed: string;
   name: string;
@@ -28,6 +35,7 @@ interface ParsedPatient {
   intervalEvents: string;
   bedStatus: string;
   systems: PatientSystems;
+  medications?: MedicationCategories;
 }
 
 /**
@@ -175,6 +183,25 @@ function cleanPatientText(text: string): string {
 }
 
 /**
+ * Merge medication arrays, removing duplicates
+ */
+function mergeMedications(
+  a: MedicationCategories | undefined,
+  b: MedicationCategories | undefined
+): MedicationCategories {
+  const mergeArrays = (arr1: string[] = [], arr2: string[] = []): string[] => {
+    const combined = [...arr1, ...arr2];
+    return [...new Set(combined)];
+  };
+
+  return {
+    infusions: mergeArrays(a?.infusions, b?.infusions),
+    scheduled: mergeArrays(a?.scheduled, b?.scheduled),
+    prn: mergeArrays(a?.prn, b?.prn),
+  };
+}
+
+/**
  * Deduplicate patients by bed number - keeps the most complete record
  */
 function deduplicatePatientsByBed(patients: ParsedPatient[]): ParsedPatient[] {
@@ -209,6 +236,7 @@ function deduplicatePatientsByBed(patients: ParsedPatient[]): ParsedPatient[] {
           ? patient.intervalEvents
           : existing.intervalEvents,
         bedStatus: patient.bedStatus || existing.bedStatus,
+        medications: mergeMedications(patient.medications, existing.medications),
         systems: {
           neuro: patient.systems?.neuro || existing.systems?.neuro || '',
           cv: patient.systems?.cv || existing.systems?.cv || '',
@@ -279,6 +307,7 @@ For each patient, extract:
 - handoffSummary: The main handoff summary text (clinical overview, history, plan - but NOT system-specific content or "What we did on rounds")
 - intervalEvents: Content from "What we did on rounds" section (or "Rounds update", "Events", "Daily update"). Do NOT include the section header.
 - bedStatus: Any bed status information
+- medications: STRUCTURED OBJECT with three arrays (infusions, scheduled, prn) - see MEDICATION PARSING below
 - systems: Object containing system-based review content. Parse ALL content into appropriate systems:
   - neuro: Neurological (mental status, neuro exams, seizures, sedation, pain, ALSO include brain/spine imaging like CT head, MRI brain)
   - cv: Cardiovascular (heart, BP, rhythms, pressors, fluids, cardiac, ALSO include cardiac labs like troponin, BNP and cardiac imaging like echo, EKG)
@@ -290,6 +319,30 @@ For each patient, extract:
   - infectious: Infectious Disease (cultures, antibiotics, fever, infection, ALSO include ID labs like WBC, procalcitonin, cultures and relevant imaging)
   - skinLines: Skin/Lines (IV access, wounds, pressure ulcers, drains, central lines, PICC, arterial lines)
   - dispo: Disposition (discharge planning, goals of care, family discussions, social work)
+
+MEDICATION PARSING (CRITICAL):
+Extract medications and categorize them into three arrays within a medications object:
+
+1. INFUSIONS array: Continuous drips with these indicators:
+   - Keywords: "mcg/kg/min", "mg/hr", "units/hr", "mL/hr", "titrate", "gtt", "drip", "infusion"
+   - Examples: ["Norepinephrine 5 mcg/kg/min", "Propofol 20 mcg/kg/min", "Insulin gtt 2 units/hr"]
+
+2. SCHEDULED array: Regular scheduled medications:
+   - Includes: daily, BID, TID, QID, q6h, q8h, q12h, etc.
+   - Examples: ["Metoprolol 25 mg PO BID", "Amlodipine 10 mg daily", "Vancomycin 1g IV q12h"]
+
+3. PRN array: As-needed medications:
+   - Keywords: "PRN", "as needed", "p.r.n.", "when"
+   - Examples: ["Morphine 2 mg IV q4h PRN pain", "Ondansetron 4 mg IV PRN nausea"]
+
+MEDICATION FORMATTING RULES:
+- Capitalize first letter of drug name
+- Remove brand names, keep generic only (e.g., "Norvasc" -> "Amlodipine")
+- Remove suffixes like "sulfate", "HCl", "hydrochloride", "sodium"
+- Remove indication text like "for pain", "for blood pressure"
+- Use abbreviations: "mg" not "milligrams", "mcg" not "micrograms"
+- Format: "DrugName Dose Route Frequency" (e.g., "Metoprolol 25 mg PO BID")
+- For infusions include rate: "Norepinephrine 5 mcg/kg/min"
 
 IMPORTANT: Do NOT create separate imaging or labs fields. Instead, include all imaging and lab information within the relevant system section where it clinically belongs. For example:
 - CT head results go in "neuro"
@@ -307,7 +360,6 @@ FORMATTING PRESERVATION (CRITICAL):
 - Use <b>text</b> for bold/emphasized text (section headers, important findings)
 - Use <u>text</u> for underlined text (diagnoses, key terms)
 - Preserve numbered lists (1. 2. 3.) and bullet points (- or •) on their own lines
-- Preserve numbered lists (1. 2. 3.) and bullet points (- or •)
 
 Return ONLY valid JSON in this exact format:
 {
@@ -321,6 +373,11 @@ Return ONLY valid JSON in this exact format:
       "handoffSummary": "string",
       "intervalEvents": "string",
       "bedStatus": "string",
+      "medications": {
+        "infusions": ["string array of formatted infusion meds"],
+        "scheduled": ["string array of formatted scheduled meds"],
+        "prn": ["string array of formatted PRN meds"]
+      },
       "systems": {
         "neuro": "string",
         "cv": "string",
@@ -344,10 +401,10 @@ CRITICAL DEDUPLICATION RULES:
 - If you see repeated/duplicated content in the source (OCR artifacts), include it only ONCE
 - Remove any stuttering, echoing, or repeated phrases
 - Clean up any OCR artifacts or formatting issues
-- If a field is missing, use an empty string
+- If a field is missing, use an empty string (for strings) or empty array (for medications)
 
 SYSTEM MAPPING GUIDANCE:
-- Look for section headers like "Neuro:", "CV:", "Pulm:", "Renal:", "GI:", "ID:", "Heme:", "Endo:", "Access:", "Dispo:"
+- Look for section headers like "Neuro:", "CV:", "Pulm:", "Renal:", "GI:", "ID:", "Heme:", "Endo:", "Access:", "Dispo:", "Meds:"
 - Also map content based on clinical context even without explicit headers
 - "Pulm" or "Pulmonary" maps to "resp"
 - "ID" or "Infectious Disease" maps to "infectious"
@@ -474,16 +531,22 @@ SYSTEM MAPPING GUIDANCE:
 
     console.log(`Initial parse: ${parsedData.patients?.length || 0} patients`);
 
-    // POST-PROCESSING: Apply deduplication and ensure systems structure
+    // POST-PROCESSING: Apply deduplication and ensure systems/medications structure
     if (parsedData.patients && parsedData.patients.length > 0) {
-      // Step 1: Clean text within each patient's fields and ensure systems structure
+      // Step 1: Clean text within each patient's fields and ensure systems/medications structure
       parsedData.patients = parsedData.patients.map(patient => {
         const systems = patient.systems || {};
+        const medications = patient.medications || { infusions: [], scheduled: [], prn: [] };
         return {
           ...patient,
           handoffSummary: cleanPatientText(patient.handoffSummary),
           intervalEvents: cleanPatientText(patient.intervalEvents),
           bedStatus: cleanPatientText(patient.bedStatus),
+          medications: {
+            infusions: medications.infusions || [],
+            scheduled: medications.scheduled || [],
+            prn: medications.prn || [],
+          },
           systems: {
             neuro: cleanPatientText(systems.neuro || ''),
             cv: cleanPatientText(systems.cv || ''),

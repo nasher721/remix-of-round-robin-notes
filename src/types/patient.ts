@@ -17,12 +17,29 @@ export interface PatientSystems {
   dispo: string;
 }
 
+// Structured medication categories
+export interface PatientMedications {
+  infusions: string[];
+  scheduled: string[];
+  prn: string[];
+  rawText?: string; // Keep original text as backup
+}
+
+// Default empty medications object
+export const defaultMedications: PatientMedications = {
+  infusions: [],
+  scheduled: [],
+  prn: [],
+  rawText: "",
+};
+
 // Field timestamps tracking when each field was last modified
 export interface FieldTimestamps {
   clinicalSummary?: string;
   intervalEvents?: string;
   imaging?: string;
   labs?: string;
+  medications?: string;
   [key: `systems.${string}`]: string | undefined;
 }
 
