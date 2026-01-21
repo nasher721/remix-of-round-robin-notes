@@ -1,5 +1,4 @@
 import { useRef, useCallback, useEffect, useState, useMemo } from "react";
-import DOMPurify from "dompurify";
 import { Button } from "@/components/ui/button";
 import { 
   Bold, Italic, List, ImageIcon, Loader2, Maximize2, Highlighter, HighlighterIcon,
@@ -23,17 +22,6 @@ import { PhrasePicker, PhraseFormDialog } from "./phrases";
 import { usePhraseExpansion } from "@/hooks/usePhraseExpansion";
 import { useClinicalPhrases } from "@/hooks/useClinicalPhrases";
 import type { Patient } from "@/types/patient";
-
-// Configure DOMPurify to allow safe HTML for medical documentation
-const sanitizeConfig = {
-  ALLOWED_TAGS: ['b', 'i', 'u', 'strong', 'em', 'br', 'p', 'div', 'span', 'ul', 'ol', 'li', 'img', 'mark', 'ins', 'del'],
-  ALLOWED_ATTR: ['src', 'alt', 'style', 'class', 'className', 'data-*'],
-  ALLOW_DATA_ATTR: true,
-};
-
-const sanitizeHtml = (html: string): string => {
-  return DOMPurify.sanitize(html, sanitizeConfig);
-};
 
 const textColors = [
   { name: "Default", value: "" },
@@ -126,7 +114,7 @@ export const ImagePasteEditor = ({
     if (range && editorRef.current.contains(range.startContainer)) {
       range.deleteContents();
       const temp = document.createElement('div');
-      temp.innerHTML = sanitizeHtml(contentHtml);
+      temp.innerHTML = contentHtml;
       const fragment = document.createDocumentFragment();
       while (temp.firstChild) {
         fragment.appendChild(temp.firstChild);
@@ -136,7 +124,7 @@ export const ImagePasteEditor = ({
       selection?.removeAllRanges();
       selection?.addRange(range);
     } else {
-      editorRef.current.innerHTML += sanitizeHtml(contentHtml);
+      editorRef.current.innerHTML += contentHtml;
     }
     
     isInternalUpdate.current = true;
@@ -181,7 +169,7 @@ export const ImagePasteEditor = ({
     if (range && editorRef.current.contains(range.startContainer)) {
       range.deleteContents();
       const temp = document.createElement('div');
-      temp.innerHTML = sanitizeHtml(contentHtml + ' ');
+      temp.innerHTML = contentHtml + ' ';
       const fragment = document.createDocumentFragment();
       while (temp.firstChild) {
         fragment.appendChild(temp.firstChild);
@@ -192,7 +180,7 @@ export const ImagePasteEditor = ({
       selection?.addRange(range);
     } else {
       // Insert at end if no selection
-      editorRef.current.innerHTML += sanitizeHtml(' ' + contentHtml + ' ');
+      editorRef.current.innerHTML += ' ' + contentHtml + ' ';
     }
     
     isInternalUpdate.current = true;
@@ -229,7 +217,7 @@ export const ImagePasteEditor = ({
         range.deleteContents();
         
         const temp = document.createElement('div');
-        temp.innerHTML = sanitizeHtml(markedHtml);
+        temp.innerHTML = markedHtml;
         const fragment = document.createDocumentFragment();
         while (temp.firstChild) {
           fragment.appendChild(temp.firstChild);
@@ -395,7 +383,7 @@ export const ImagePasteEditor = ({
         range.deleteContents();
         
         const temp = document.createElement('div');
-        temp.innerHTML = sanitizeHtml(markedHtml);
+        temp.innerHTML = markedHtml;
         const fragment = document.createDocumentFragment();
         while (temp.firstChild) {
           fragment.appendChild(temp.firstChild);

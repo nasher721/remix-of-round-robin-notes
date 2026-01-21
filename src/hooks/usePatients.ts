@@ -6,46 +6,6 @@ import type { Patient, PatientSystems, PatientMedications, FieldTimestamps } fro
 import { parseSystemsJson, parseFieldTimestampsJson, parseMedicationsJson, prepareUpdateData } from "@/lib/mappers/patientMapper";
 import type { Json } from "@/integrations/supabase/types";
 
-const UNKNOWN_COLUMN_CODES = new Set(["42703", "PGRST204"]);
-const MISSING_COLUMN_PATTERNS = [
-  /column \"?([^\"]+)\"? does not exist/i,
-  /Could not find the '([^']+)' column/i,
-];
-
-const extractMissingColumn = (error: unknown): string | null => {
-  if (typeof error !== "object" || error === null) {
-    return null;
-  }
-
-  const { code, message } = error as { code?: string; message?: string };
-  if (!message || (code && !UNKNOWN_COLUMN_CODES.has(code))) {
-    return null;
-  }
-
-  for (const pattern of MISSING_COLUMN_PATTERNS) {
-    const match = message.match(pattern);
-    if (match?.[1]) {
-      return match[1];
-    }
-  }
-
-  return null;
-};
-
-const stripMissingColumn = (
-  payload: Record<string, unknown>,
-  error: unknown
-): Record<string, unknown> | null => {
-  const missingColumn = extractMissingColumn(error);
-  if (!missingColumn || !(missingColumn in payload)) {
-    return null;
-  }
-
-  const nextPayload = { ...payload };
-  delete nextPayload[missingColumn];
-  return nextPayload;
-};
-
 const defaultSystemsValue: PatientSystems = {
   neuro: "",
   cv: "",
@@ -75,7 +35,7 @@ export const usePatients = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Fetch patients from database with retry logic
+  // Fetch patients from database
   const fetchPatients = useCallback(async () => {
     if (!user) {
       setPatients([]);
@@ -84,13 +44,12 @@ export const usePatients = () => {
     }
 
     try {
-      const result = await supabase
+      const { data, error } = await supabase
         .from("patients")
         .select("*")
         .order("patient_number", { ascending: true });
-        
-      if (result.error) throw result.error;
-      const data = result.data;
+
+      if (error) throw error;
 
       const formattedPatients: Patient[] = (data || []).map((p) => ({
         id: p.id,
@@ -118,7 +77,7 @@ export const usePatients = () => {
       console.error("Error fetching patients:", error);
       toast({
         title: "Error",
-        description: "Failed to load patients. Please check your connection and try again.",
+        description: "Failed to load patients.",
         variant: "destructive",
       });
     } finally {
@@ -130,92 +89,29 @@ export const usePatients = () => {
     fetchPatients();
   }, [fetchPatients]);
 
-  const insertPatientRow = useCallback(async (payload: {
-    user_id: string;
-    patient_number: number;
-    name: string;
-    bed: string;
-    clinical_summary: string;
-    interval_events: string;
-    imaging: string;
-    labs: string;
-    systems: Json;
-    medications: Json;
-    collapsed: boolean;
-  }) => {
-    let attemptPayload: Record<string, unknown> = { ...payload };
-    let lastError: unknown;
-
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      const { data, error } = await supabase
-        .from("patients")
-        .insert([attemptPayload as typeof payload])
-        .select()
-        .single();
-
-      if (!error) {
-        return data;
-      }
-
-      lastError = error;
-      const nextPayload = stripMissingColumn(attemptPayload, error);
-      if (!nextPayload) {
-        throw error;
-      }
-
-      attemptPayload = nextPayload;
-    }
-
-    throw lastError;
-  }, []);
-
-  const updatePatientRow = useCallback(async (id: string, payload: Record<string, unknown>) => {
-    let attemptPayload = { ...payload };
-    let lastError: unknown;
-
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      if (Object.keys(attemptPayload).length === 0) {
-        return;
-      }
-
-      const { error } = await supabase
-        .from("patients")
-        .update(attemptPayload)
-        .eq("id", id);
-
-      if (!error) {
-        return;
-      }
-
-      lastError = error;
-      const nextPayload = stripMissingColumn(attemptPayload, error);
-      if (!nextPayload) {
-        throw error;
-      }
-
-      attemptPayload = nextPayload;
-    }
-
-    throw lastError;
-  }, []);
-
   const addPatient = useCallback(async () => {
     if (!user) return;
 
     try {
-      const data = await insertPatientRow({
-        user_id: user.id,
-        patient_number: patientCounter,
-        name: "",
-        bed: "",
-        clinical_summary: "",
-        interval_events: "",
-        imaging: "",
-        labs: "",
-        systems: defaultSystemsValue as unknown as Json,
-        medications: defaultMedicationsValue as unknown as Json,
-        collapsed: false,
-      });
+      const { data, error } = await supabase
+        .from("patients")
+        .insert([{
+          user_id: user.id,
+          patient_number: patientCounter,
+          name: "",
+          bed: "",
+          clinical_summary: "",
+          interval_events: "",
+          imaging: "",
+          labs: "",
+          systems: defaultSystemsValue as unknown as Json,
+          medications: defaultMedicationsValue as unknown as Json,
+          collapsed: false,
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
 
       const newPatient: Patient = {
         id: data.id,
@@ -249,7 +145,7 @@ export const usePatients = () => {
         variant: "destructive",
       });
     }
-  }, [user, patientCounter, toast, insertPatientRow]);
+  }, [user, patientCounter, toast]);
 
   const updatePatient = useCallback(async (id: string, field: string, value: unknown) => {
     if (!user) return;
@@ -319,7 +215,12 @@ export const usePatients = () => {
     }
 
     try {
-      await updatePatientRow(id, updateData);
+      const { error } = await supabase
+        .from("patients")
+        .update(updateData)
+        .eq("id", id);
+
+      if (error) throw error;
 
       // Record history entry for trackable fields (non-blocking)
       if (shouldTrackTimestamp && oldValue !== (value as string)) {
@@ -340,7 +241,7 @@ export const usePatients = () => {
       // Revert on error
       fetchPatients();
     }
-  }, [user, patients, fetchPatients, updatePatientRow]);
+  }, [user, patients, fetchPatients]);
 
   const removePatient = useCallback(async (id: string) => {
     if (!user) return;
@@ -377,19 +278,25 @@ export const usePatients = () => {
     if (!patient) return;
 
     try {
-      const data = await insertPatientRow({
-        user_id: user.id,
-        patient_number: patientCounter,
-        name: patient.name + " (Copy)",
-        bed: patient.bed,
-        clinical_summary: patient.clinicalSummary,
-        interval_events: patient.intervalEvents,
-        imaging: patient.imaging,
-        labs: patient.labs,
-        systems: patient.systems as unknown as Json,
-        medications: patient.medications as unknown as Json,
-        collapsed: false,
-      });
+      const { data, error } = await supabase
+        .from("patients")
+        .insert([{
+          user_id: user.id,
+          patient_number: patientCounter,
+          name: patient.name + " (Copy)",
+          bed: patient.bed,
+          clinical_summary: patient.clinicalSummary,
+          interval_events: patient.intervalEvents,
+          imaging: patient.imaging,
+          labs: patient.labs,
+          systems: patient.systems as unknown as Json,
+          medications: patient.medications as unknown as Json,
+          collapsed: false,
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
 
       const newPatient: Patient = {
         id: data.id,
@@ -423,7 +330,7 @@ export const usePatients = () => {
         variant: "destructive",
       });
     }
-  }, [user, patients, patientCounter, toast, insertPatientRow]);
+  }, [user, patients, patientCounter, toast]);
 
   const toggleCollapse = useCallback(async (id: string) => {
     const patient = patients.find((p) => p.id === id);
@@ -473,19 +380,25 @@ export const usePatients = () => {
         const systemsToInsert = p.systems || defaultSystemsValue;
         const medicationsToInsert = p.medications || defaultMedicationsValue;
         
-        const data = await insertPatientRow({
-          user_id: user.id,
-          patient_number: currentCounter,
-          name: p.name,
-          bed: p.bed,
-          clinical_summary: p.clinicalSummary,
-          interval_events: p.intervalEvents || "",
-          imaging: "",
-          labs: "",
-          systems: systemsToInsert as unknown as Json,
-          medications: medicationsToInsert as unknown as Json,
-          collapsed: false,
-        });
+        const { data, error } = await supabase
+          .from("patients")
+        .insert([{
+            user_id: user.id,
+            patient_number: currentCounter,
+            name: p.name,
+            bed: p.bed,
+            clinical_summary: p.clinicalSummary,
+            interval_events: p.intervalEvents || "",
+            imaging: "",
+            labs: "",
+            systems: systemsToInsert as unknown as Json,
+            medications: medicationsToInsert as unknown as Json,
+            collapsed: false,
+          }])
+          .select()
+          .single();
+
+        if (error) throw error;
 
         newPatients.push({
           id: data.id,
@@ -523,7 +436,7 @@ export const usePatients = () => {
       });
       throw error;
     }
-  }, [user, patientCounter, toast, insertPatientRow]);
+  }, [user, patientCounter, toast]);
 
   // Add a patient with pre-populated data (for smart import)
   const addPatientWithData = useCallback(async (patientData: {
@@ -539,19 +452,25 @@ export const usePatients = () => {
     if (!user) return;
 
     try {
-      const data = await insertPatientRow({
-        user_id: user.id,
-        patient_number: patientCounter,
-        name: patientData.name || "",
-        bed: patientData.bed || "",
-        clinical_summary: patientData.clinicalSummary || "",
-        interval_events: patientData.intervalEvents || "",
-        imaging: patientData.imaging || "",
-        labs: patientData.labs || "",
-        systems: patientData.systems as unknown as Json,
-        medications: (patientData.medications || defaultMedicationsValue) as unknown as Json,
-        collapsed: false,
-      });
+      const { data, error } = await supabase
+        .from("patients")
+        .insert([{
+          user_id: user.id,
+          patient_number: patientCounter,
+          name: patientData.name || "",
+          bed: patientData.bed || "",
+          clinical_summary: patientData.clinicalSummary || "",
+          interval_events: patientData.intervalEvents || "",
+          imaging: patientData.imaging || "",
+          labs: patientData.labs || "",
+          systems: patientData.systems as unknown as Json,
+          medications: (patientData.medications || defaultMedicationsValue) as unknown as Json,
+          collapsed: false,
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
 
       const newPatient: Patient = {
         id: data.id,
@@ -586,7 +505,7 @@ export const usePatients = () => {
       });
       throw error;
     }
-  }, [user, patientCounter, toast, insertPatientRow]);
+  }, [user, patientCounter, toast]);
 
   const clearAll = useCallback(async () => {
     if (!user) return;

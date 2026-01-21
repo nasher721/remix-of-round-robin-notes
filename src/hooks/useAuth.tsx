@@ -19,57 +19,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    let mounted = true;
-
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        if (mounted) {
-          setSession(session);
-          setUser(session?.user ?? null);
-          setLoading(false);
-        }
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
       }
     );
 
     // THEN check for existing session
-    supabase.auth.getSession()
-      .then(({ data: { session } }) => {
-        if (mounted) {
-          setSession(session);
-          setUser(session?.user ?? null);
-          setLoading(false);
-        }
-      })
-      .catch((error) => {
-        console.error('[Auth] Failed to get session:', error);
-        if (mounted) {
-          setLoading(false);
-        }
-      });
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
 
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    console.log('[Auth] Attempting sign in for:', email);
-    console.log('[Auth] Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
-    
-    try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        console.error('[Auth] Sign in error:', error.message);
-      } else {
-        console.log('[Auth] Sign in successful');
-      }
-      return { error: error as Error | null };
-    } catch (err) {
-      console.error('[Auth] Sign in network error:', err);
-      return { error: err as Error };
-    }
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return { error: error as Error | null };
   };
 
   const signUp = async (email: string, password: string) => {

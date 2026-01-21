@@ -3,20 +3,25 @@ import * as ReactDOM from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
-// IMPORTANT: Unregister all service workers to prevent network interception issues
-// Service workers can interfere with Supabase requests in the preview environment
+// Register service worker outside of React to avoid HMR issues
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then((registrations) => {
-    for (const registration of registrations) {
-      registration.unregister().then((success) => {
-        if (success) {
-          console.log('[App] Service Worker unregistered successfully');
+  navigator.serviceWorker.register('/sw.js', { scope: '/' })
+    .then((registration) => {
+      console.log('[App] Service Worker registered:', registration.scope);
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing;
+        if (newWorker) {
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              console.log('[App] New content available, refresh to update');
+            }
+          });
         }
       });
-    }
-  }).catch((error) => {
-    console.error('[App] Error unregistering service workers:', error);
-  });
+    })
+    .catch((error) => {
+      console.error('[App] Service Worker registration failed:', error);
+    });
 }
 
 const rootElement = document.getElementById("root");

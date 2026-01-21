@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { useToast } from "./use-toast";
-import { withRetry } from "@/lib/fetchWithRetry";
 
 export type DictionaryEntry = {
   misspelling: string;
@@ -23,14 +22,11 @@ export const useCloudDictionary = () => {
     }
 
     try {
-      const { data, error } = await withRetry(async () => {
-        const result = await supabase
-          .from("user_dictionary")
-          .select("misspelling, correction");
-        
-        if (result.error) throw result.error;
-        return result;
-      }, { maxRetries: 3, baseDelay: 1000 });
+      const { data, error } = await supabase
+        .from("user_dictionary")
+        .select("misspelling, correction");
+
+      if (error) throw error;
 
       const dict: Record<string, string> = {};
       (data || []).forEach((entry) => {

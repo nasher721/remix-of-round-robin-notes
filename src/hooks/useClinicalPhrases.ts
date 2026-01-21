@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { withRetry } from '@/lib/fetchWithRetry';
 import type { 
   ClinicalPhrase, 
   PhraseField, 
@@ -80,7 +79,7 @@ export const useClinicalPhrases = () => {
   const [folders, setFolders] = useState<PhraseFolder[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch all phrases and folders with retry logic
+  // Fetch all phrases and folders
   const fetchData = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -91,18 +90,13 @@ export const useClinicalPhrases = () => {
         return;
       }
 
-      const [phrasesRes, foldersRes] = await withRetry(async () => {
-        const results = await Promise.all([
-          supabase.from('clinical_phrases').select('*').order('name'),
-          supabase.from('phrase_folders').select('*').order('sort_order'),
-        ]);
-        
-        if (results[0].error) throw results[0].error;
-        if (results[1].error) throw results[1].error;
-        
-        return results;
-      }, { maxRetries: 3, baseDelay: 1000 });
+      const [phrasesRes, foldersRes] = await Promise.all([
+        supabase.from('clinical_phrases').select('*').order('name'),
+        supabase.from('phrase_folders').select('*').order('sort_order'),
+      ]);
 
+      if (phrasesRes.error) throw phrasesRes.error;
+      if (foldersRes.error) throw foldersRes.error;
 
       setPhrases((phrasesRes.data || []).map(mapPhrase));
       setFolders((foldersRes.data || []).map(mapFolder));
@@ -402,14 +396,14 @@ export const useClinicalPhrases = () => {
         })
         .eq('id', phraseId);
 
-      // Log usage metadata only - PHI fields (input_values, inserted_content) are not stored
-      // to prevent Protected Health Information exposure in usage logs
+      // Log usage
       await supabase.from('phrase_usage_log').insert([{
         user_id: user.id,
         phrase_id: phraseId,
         patient_id: patientId,
         target_field: targetField,
-        // input_values and inserted_content intentionally omitted to protect PHI
+        input_values: inputValues ? JSON.parse(JSON.stringify(inputValues)) : null,
+        inserted_content: insertedContent,
       }]);
 
       // Update local state
