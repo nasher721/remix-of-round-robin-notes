@@ -59,7 +59,13 @@ const Auth = () => {
       if (isLogin) {
         const { error } = await signIn(email, password);
         if (error) {
-          if (error.message.includes("Invalid login credentials")) {
+          if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
+            toast({
+              title: "Connection Error",
+              description: "Unable to connect to the server. Please check your internet connection and try again.",
+              variant: "destructive",
+            });
+          } else if (error.message.includes("Invalid login credentials")) {
             toast({
               title: "Login Failed",
               description: "Invalid email or password. Please try again.",
@@ -82,7 +88,13 @@ const Auth = () => {
       } else {
         const { error } = await signUp(email, password);
         if (error) {
-          if (error.message.includes("already registered")) {
+          if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
+            toast({
+              title: "Connection Error",
+              description: "Unable to connect to the server. Please check your internet connection and try again.",
+              variant: "destructive",
+            });
+          } else if (error.message.includes("already registered")) {
             toast({
               title: "Account Exists",
               description: "This email is already registered. Please sign in instead.",
@@ -103,6 +115,12 @@ const Auth = () => {
           navigate("/");
         }
       }
+    } catch (networkError) {
+      toast({
+        title: "Connection Error",
+        description: "Unable to connect to the server. Please try again in a moment.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
