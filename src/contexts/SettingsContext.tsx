@@ -1,6 +1,8 @@
 import * as React from 'react';
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { STORAGE_KEYS, DEFAULT_CONFIG } from '@/constants/config';
+import { useAuth } from '@/hooks/useAuth';
+import { fetchUserSettings, saveUserSettings, type UserSettingsPayload } from '@/lib/userSettings';
 
 export type SortBy = 'number' | 'room' | 'name';
 
@@ -29,6 +31,9 @@ interface SettingsProviderProps {
 }
 
 export const SettingsProvider = ({ children }: SettingsProviderProps) => {
+  const { user } = useAuth();
+  const settingsCacheRef = React.useRef<UserSettingsPayload | null>(null);
+  const [cloudLoaded, setCloudLoaded] = React.useState(false);
   const [globalFontSize, setGlobalFontSizeState] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.GLOBAL_FONT_SIZE);
     return saved ? parseInt(saved, 10) : DEFAULT_CONFIG.GLOBAL_FONT_SIZE;
@@ -47,6 +52,43 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
     const saved = localStorage.getItem(STORAGE_KEYS.SHOW_LAB_FISHBONES);
     return saved !== null ? saved === 'true' : true; // Default to true
   });
+
+  useEffect(() => {
+    let isActive = true;
+    const loadCloudSettings = async () => {
+      if (!user) {
+        settingsCacheRef.current = null;
+        setCloudLoaded(true);
+        return;
+      }
+      const settings = await fetchUserSettings(user.id);
+      if (!isActive) return;
+      settingsCacheRef.current = settings;
+      const cloud = settings?.appSettings;
+      if (cloud) {
+        if (typeof cloud.globalFontSize === 'number') {
+          setGlobalFontSizeState(cloud.globalFontSize);
+        }
+        if (typeof cloud.todosAlwaysVisible === 'boolean') {
+          setTodosAlwaysVisibleState(cloud.todosAlwaysVisible);
+        }
+        if (typeof cloud.sortBy === 'string') {
+          setSortByState(cloud.sortBy as SortBy);
+        }
+        if (typeof cloud.showLabFishbones === 'boolean') {
+          setShowLabFishbonesState(cloud.showLabFishbones);
+        }
+      }
+      setCloudLoaded(true);
+    };
+
+    setCloudLoaded(false);
+    loadCloudSettings();
+
+    return () => {
+      isActive = false;
+    };
+  }, [user]);
 
   // Persist font size
   useEffect(() => {
@@ -67,6 +109,27 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.SHOW_LAB_FISHBONES, String(showLabFishbones));
   }, [showLabFishbones]);
+
+  useEffect(() => {
+    if (!user || !cloudLoaded) return;
+    const timeout = window.setTimeout(async () => {
+      const merged = await saveUserSettings(
+        user.id,
+        {
+          appSettings: {
+            globalFontSize,
+            todosAlwaysVisible,
+            sortBy,
+            showLabFishbones,
+          },
+        },
+        settingsCacheRef.current
+      );
+      settingsCacheRef.current = merged;
+    }, 300);
+
+    return () => window.clearTimeout(timeout);
+  }, [user, cloudLoaded, globalFontSize, todosAlwaysVisible, sortBy, showLabFishbones]);
 
   const setGlobalFontSize = useCallback((size: number) => {
     setGlobalFontSizeState(size);
