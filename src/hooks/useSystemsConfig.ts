@@ -3,7 +3,9 @@
  * Persists configuration to localStorage
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { fetchUserSettings, saveUserSettings, type UserSettingsPayload } from '@/lib/userSettings';
 
 export interface SystemConfig {
   key: string;
@@ -32,26 +34,58 @@ export const DEFAULT_SYSTEMS: SystemConfig[] = [
 const STORAGE_KEY = 'handoff-systems-config';
 
 export const useSystemsConfig = () => {
+  const { user } = useAuth();
+  const settingsRef = useRef<UserSettingsPayload | null>(null);
+  const [cloudLoaded, setCloudLoaded] = useState(false);
+  const mergeWithDefaults = useCallback((saved: SystemConfig[]) => {
+    const savedKeys = new Set(saved.map((s) => s.key));
+    const merged = [...saved];
+    DEFAULT_SYSTEMS.forEach((defaultSys) => {
+      if (!savedKeys.has(defaultSys.key)) {
+        merged.push(defaultSys);
+      }
+    });
+    return merged.sort((a, b) => a.sortOrder - b.sortOrder);
+  }, []);
+
   const [systems, setSystems] = useState<SystemConfig[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Merge with defaults to ensure new default systems are added
-        const savedKeys = new Set(parsed.map((s: SystemConfig) => s.key));
-        const merged = [...parsed];
-        DEFAULT_SYSTEMS.forEach((defaultSys) => {
-          if (!savedKeys.has(defaultSys.key)) {
-            merged.push(defaultSys);
-          }
-        });
-        return merged.sort((a: SystemConfig, b: SystemConfig) => a.sortOrder - b.sortOrder);
+        return mergeWithDefaults(parsed);
       }
     } catch (e) {
       console.error('Failed to load systems config:', e);
     }
     return DEFAULT_SYSTEMS;
   });
+
+  useEffect(() => {
+    let isActive = true;
+    const loadCloudSystems = async () => {
+      if (!user) {
+        settingsRef.current = null;
+        setCloudLoaded(true);
+        return;
+      }
+      const settings = await fetchUserSettings(user.id);
+      if (!isActive) return;
+      settingsRef.current = settings;
+      const cloudSystems = settings?.systemsConfig;
+      if (Array.isArray(cloudSystems)) {
+        setSystems(mergeWithDefaults(cloudSystems as SystemConfig[]));
+      }
+      setCloudLoaded(true);
+    };
+
+    setCloudLoaded(false);
+    loadCloudSystems();
+
+    return () => {
+      isActive = false;
+    };
+  }, [user, mergeWithDefaults]);
 
   // Persist to localStorage when systems change
   useEffect(() => {
@@ -61,6 +95,20 @@ export const useSystemsConfig = () => {
       console.error('Failed to save systems config:', e);
     }
   }, [systems]);
+
+  useEffect(() => {
+    if (!user || !cloudLoaded) return;
+    const timeout = window.setTimeout(async () => {
+      const merged = await saveUserSettings(
+        user.id,
+        { systemsConfig: systems },
+        settingsRef.current
+      );
+      settingsRef.current = merged;
+    }, 300);
+
+    return () => window.clearTimeout(timeout);
+  }, [user, cloudLoaded, systems]);
 
   // Get only enabled systems, sorted
   const enabledSystems = systems

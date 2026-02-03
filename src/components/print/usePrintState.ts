@@ -3,9 +3,14 @@ import type { ColumnConfig, ColumnWidthsType, PrintPreset } from './types';
 import { defaultColumns, defaultColumnWidths, fontFamilies } from './constants';
 import { useToast } from '@/hooks/use-toast';
 import { STORAGE_KEYS, DEFAULT_CONFIG } from '@/constants/config';
+import { useAuth } from '@/hooks/useAuth';
+import { fetchUserSettings, saveUserSettings, type UserSettingsPayload } from '@/lib/userSettings';
 
 export const usePrintState = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const settingsRef = React.useRef<UserSettingsPayload | null>(null);
+  const [cloudLoaded, setCloudLoaded] = React.useState(false);
   
   const [columnWidths, setColumnWidths] = React.useState<ColumnWidthsType>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.PRINT_COLUMN_WIDTHS);
@@ -72,6 +77,72 @@ export const usePrintState = () => {
     return saved ? JSON.parse(saved) : [];
   });
 
+  React.useEffect(() => {
+    let isActive = true;
+    const loadCloudSettings = async () => {
+      if (!user) {
+        settingsRef.current = null;
+        setCloudLoaded(true);
+        return;
+      }
+      const settings = await fetchUserSettings(user.id);
+      if (!isActive) return;
+      settingsRef.current = settings;
+      const cloud = settings?.printSettings as {
+        columnWidths?: ColumnWidthsType;
+        columns?: ColumnConfig[];
+        printFontSize?: number;
+        printFontFamily?: string;
+        onePatientPerPage?: boolean;
+        autoFitFontSize?: boolean;
+        combinedColumns?: string[];
+        systemsReviewColumnCount?: number;
+        printOrientation?: 'portrait' | 'landscape';
+        customPresets?: PrintPreset[];
+      } | null;
+      if (cloud) {
+        if (cloud.columnWidths) {
+          setColumnWidths({ ...defaultColumnWidths, ...cloud.columnWidths });
+        }
+        if (cloud.columns) {
+          setColumns(cloud.columns);
+        }
+        if (typeof cloud.printFontSize === 'number') {
+          setPrintFontSize(cloud.printFontSize);
+        }
+        if (typeof cloud.printFontFamily === 'string') {
+          setPrintFontFamily(cloud.printFontFamily);
+        }
+        if (typeof cloud.onePatientPerPage === 'boolean') {
+          setOnePatientPerPage(cloud.onePatientPerPage);
+        }
+        if (typeof cloud.autoFitFontSize === 'boolean') {
+          setAutoFitFontSize(cloud.autoFitFontSize);
+        }
+        if (Array.isArray(cloud.combinedColumns)) {
+          setCombinedColumns(cloud.combinedColumns);
+        }
+        if (typeof cloud.systemsReviewColumnCount === 'number') {
+          setSystemsReviewColumnCount(cloud.systemsReviewColumnCount);
+        }
+        if (cloud.printOrientation) {
+          setPrintOrientation(cloud.printOrientation);
+        }
+        if (Array.isArray(cloud.customPresets)) {
+          setCustomPresets(cloud.customPresets);
+        }
+      }
+      setCloudLoaded(true);
+    };
+
+    setCloudLoaded(false);
+    loadCloudSettings();
+
+    return () => {
+      isActive = false;
+    };
+  }, [user]);
+
   // Persist preferences
   React.useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.PRINT_ONE_PATIENT_PER_PAGE, onePatientPerPage.toString());
@@ -105,6 +176,46 @@ export const usePrintState = () => {
   React.useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.PRINT_COLUMN_WIDTHS, JSON.stringify(columnWidths));
   }, [columnWidths]);
+
+  React.useEffect(() => {
+    if (!user || !cloudLoaded) return;
+    const timeout = window.setTimeout(async () => {
+      const merged = await saveUserSettings(
+        user.id,
+        {
+          printSettings: {
+            columnWidths,
+            columns,
+            printFontSize,
+            printFontFamily,
+            onePatientPerPage,
+            autoFitFontSize,
+            combinedColumns,
+            systemsReviewColumnCount,
+            printOrientation,
+            customPresets,
+          },
+        },
+        settingsRef.current
+      );
+      settingsRef.current = merged;
+    }, 300);
+
+    return () => window.clearTimeout(timeout);
+  }, [
+    user,
+    cloudLoaded,
+    columnWidths,
+    columns,
+    printFontSize,
+    printFontFamily,
+    onePatientPerPage,
+    autoFitFontSize,
+    combinedColumns,
+    systemsReviewColumnCount,
+    printOrientation,
+    customPresets,
+  ]);
 
   const getFontFamilyCSS = React.useCallback(() => {
     return fontFamilies.find(f => f.value === printFontFamily)?.css || fontFamilies[0].css;

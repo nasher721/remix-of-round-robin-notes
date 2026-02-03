@@ -62,6 +62,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAuth } from "@/hooks/useAuth";
+import { fetchUserSettings, saveUserSettings, type UserSettingsPayload } from "@/lib/userSettings";
 
 export interface PatientTodosMap {
   [patientId: string]: PatientTodo[];
@@ -202,7 +204,7 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
   const [expandedCell, setExpandedCell] = React.useState<ExpandedCell | null>(null);
   const [editingCell, setEditingCell] = React.useState<ExpandedCell | null>(null);
   const [editValue, setEditValue] = React.useState("");
-  const defaultColumnWidths: ColumnWidthsType = {
+  const defaultColumnWidths = React.useMemo<ColumnWidthsType>(() => ({
     patient: 100,
     summary: 150,
     events: 150,
@@ -219,7 +221,7 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
     'systems.infectious': 90,
     'systems.skinLines': 90,
     'systems.dispo': 90,
-  };
+  }), []);
   const [columnWidths, setColumnWidths] = React.useState<ColumnWidthsType>(() => {
     const saved = localStorage.getItem('printColumnWidths');
     if (saved) {
@@ -290,6 +292,78 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
   const [showSavePreset, setShowSavePreset] = React.useState(false);
   
   const { toast } = useToast();
+  const { user } = useAuth();
+  const settingsRef = React.useRef<UserSettingsPayload | null>(null);
+  const [cloudLoaded, setCloudLoaded] = React.useState(false);
+
+  React.useEffect(() => {
+    let isActive = true;
+    const loadCloudSettings = async () => {
+      if (!user) {
+        settingsRef.current = null;
+        setCloudLoaded(true);
+        return;
+      }
+      const settings = await fetchUserSettings(user.id);
+      if (!isActive) return;
+      settingsRef.current = settings;
+      const cloud = settings?.printSettings as Partial<PrintPreset> & {
+        columnWidths?: ColumnWidthsType;
+        columns?: ColumnConfig[];
+        printFontSize?: number;
+        printFontFamily?: string;
+        onePatientPerPage?: boolean;
+        autoFitFontSize?: boolean;
+        combinedColumns?: string[];
+        systemsReviewColumnCount?: number;
+        printOrientation?: 'portrait' | 'landscape';
+        customPresets?: PrintPreset[];
+      };
+      if (cloud) {
+        if (cloud.columnWidths) {
+          setColumnWidths({ ...defaultColumnWidths, ...cloud.columnWidths });
+        }
+        if (cloud.columns) {
+          setColumns(defaultColumns.map(col => {
+            const savedCol = cloud.columns?.find(s => s.key === col.key);
+            return savedCol ? { ...col, enabled: savedCol.enabled } : col;
+          }));
+        }
+        if (typeof cloud.printFontSize === 'number') {
+          setPrintFontSize(cloud.printFontSize);
+        }
+        if (typeof cloud.printFontFamily === 'string') {
+          setPrintFontFamily(cloud.printFontFamily);
+        }
+        if (typeof cloud.onePatientPerPage === 'boolean') {
+          setOnePatientPerPage(cloud.onePatientPerPage);
+        }
+        if (typeof cloud.autoFitFontSize === 'boolean') {
+          setAutoFitFontSize(cloud.autoFitFontSize);
+        }
+        if (Array.isArray(cloud.combinedColumns)) {
+          setCombinedColumns(cloud.combinedColumns);
+        }
+        if (typeof cloud.systemsReviewColumnCount === 'number') {
+          setSystemsReviewColumnCount(cloud.systemsReviewColumnCount);
+        }
+        if (cloud.printOrientation) {
+          setPrintOrientation(cloud.printOrientation);
+        }
+        if (Array.isArray(cloud.customPresets)) {
+          setCustomPresets(cloud.customPresets);
+        }
+      }
+      setCloudLoaded(true);
+    };
+
+    setCloudLoaded(false);
+    loadCloudSettings();
+
+    return () => {
+      isActive = false;
+    };
+  }, [user, defaultColumnWidths]);
 
   // Save one patient per page preference
   React.useEffect(() => {
@@ -320,6 +394,46 @@ export const PrintExportModal = ({ open, onOpenChange, patients, patientTodos = 
   React.useEffect(() => {
     localStorage.setItem('printCustomPresets', JSON.stringify(customPresets));
   }, [customPresets]);
+
+  React.useEffect(() => {
+    if (!user || !cloudLoaded) return;
+    const timeout = window.setTimeout(async () => {
+      const merged = await saveUserSettings(
+        user.id,
+        {
+          printSettings: {
+            columnWidths,
+            columns,
+            printFontSize,
+            printFontFamily,
+            onePatientPerPage,
+            autoFitFontSize,
+            combinedColumns,
+            systemsReviewColumnCount,
+            printOrientation,
+            customPresets,
+          },
+        },
+        settingsRef.current
+      );
+      settingsRef.current = merged;
+    }, 300);
+
+    return () => window.clearTimeout(timeout);
+  }, [
+    user,
+    cloudLoaded,
+    columnWidths,
+    columns,
+    printFontSize,
+    printFontFamily,
+    onePatientPerPage,
+    autoFitFontSize,
+    combinedColumns,
+    systemsReviewColumnCount,
+    printOrientation,
+    customPresets,
+  ]);
 
   // Save current settings as a preset
   const saveCurrentAsPreset = React.useCallback(() => {
