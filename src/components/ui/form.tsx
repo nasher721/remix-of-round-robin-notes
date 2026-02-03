@@ -84,7 +84,8 @@ FormLabel.displayName = "FormLabel";
 
 const FormControl = React.forwardRef<React.ElementRef<typeof Slot>, React.ComponentPropsWithoutRef<typeof Slot>>(
   ({ ...props }, ref) => {
-    const { error, formItemId, formDescriptionId, formMessageId } = useFormField();
+    const { error, formItemId, formDescriptionId, formMessageId, isDirty, isTouched } = useFormField();
+    const showSuccess = (isDirty || isTouched) && !error;
 
     return (
       <Slot
@@ -92,6 +93,8 @@ const FormControl = React.forwardRef<React.ElementRef<typeof Slot>, React.Compon
         id={formItemId}
         aria-describedby={!error ? `${formDescriptionId}` : `${formDescriptionId} ${formMessageId}`}
         aria-invalid={!!error}
+        data-invalid={error ? "true" : undefined}
+        data-valid={showSuccess ? "true" : undefined}
         {...props}
       />
     );
