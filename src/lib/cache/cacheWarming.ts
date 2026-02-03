@@ -1,6 +1,7 @@
 import { QueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { QUERY_KEYS, CACHE_CONFIG } from './cacheConfig';
+import { logInfo } from '@/lib/observability/logger';
 
 export interface WarmingProgress {
   total: number;
@@ -61,7 +62,11 @@ export const cacheWarming = {
       updatedAt: Date.now(),
     });
     
-    console.log(`[Cache Warming] Warmed ${data?.length || 0} patients`);
+    logInfo('cache.warming.completed', {
+      entity: 'patients',
+      count: data?.length || 0,
+      userId,
+    });
   },
   
   // Warm autotexts data
@@ -77,7 +82,11 @@ export const cacheWarming = {
       updatedAt: Date.now(),
     });
     
-    console.log(`[Cache Warming] Warmed ${data?.length || 0} autotexts`);
+    logInfo('cache.warming.completed', {
+      entity: 'autotexts',
+      count: data?.length || 0,
+      userId,
+    });
   },
   
   // Warm clinical phrases data
@@ -93,7 +102,11 @@ export const cacheWarming = {
       updatedAt: Date.now(),
     });
     
-    console.log(`[Cache Warming] Warmed ${data?.length || 0} clinical phrases`);
+    logInfo('cache.warming.completed', {
+      entity: 'clinical_phrases',
+      count: data?.length || 0,
+      userId,
+    });
   },
   
   // Warm templates data
@@ -109,7 +122,11 @@ export const cacheWarming = {
       updatedAt: Date.now(),
     });
     
-    console.log(`[Cache Warming] Warmed ${data?.length || 0} templates`);
+    logInfo('cache.warming.completed', {
+      entity: 'templates',
+      count: data?.length || 0,
+      userId,
+    });
   },
   
   // Warm user dictionary
@@ -125,7 +142,11 @@ export const cacheWarming = {
       updatedAt: Date.now(),
     });
     
-    console.log(`[Cache Warming] Warmed ${data?.length || 0} dictionary entries`);
+    logInfo('cache.warming.completed', {
+      entity: 'user_dictionary',
+      count: data?.length || 0,
+      userId,
+    });
   },
   
   // Prefetch related data on hover/focus

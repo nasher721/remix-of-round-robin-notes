@@ -5,6 +5,7 @@ import { useToast } from "./use-toast";
 import type { Patient, PatientSystems, PatientMedications, FieldTimestamps } from "@/types/patient";
 import { parseSystemsJson, parseFieldTimestampsJson, parseMedicationsJson, prepareUpdateData } from "@/lib/mappers/patientMapper";
 import type { Json } from "@/integrations/supabase/types";
+import { logError, logMetric } from "@/lib/observability/logger";
 
 const defaultSystemsValue: PatientSystems = {
   neuro: "",
@@ -43,6 +44,10 @@ export const usePatients = () => {
       return;
     }
 
+    const startTime = performance.now();
+    let succeeded = false;
+    let recordCount = 0;
+
     try {
       const { data, error } = await supabase
         .from("patients")
@@ -69,18 +74,26 @@ export const usePatients = () => {
       }));
 
       setPatients(formattedPatients);
+      recordCount = formattedPatients.length;
       
       // Set counter to max patient_number + 1
       const maxNumber = formattedPatients.reduce((max, p) => Math.max(max, p.patientNumber), 0);
       setPatientCounter(maxNumber + 1);
+      succeeded = true;
     } catch (error) {
-      console.error("Error fetching patients:", error);
+      logError("patients.fetch.failed", error, { userId: user.id });
+      logMetric("db.patients.fetch.error", 1, { userId: user.id });
       toast({
         title: "Error",
         description: "Failed to load patients.",
         variant: "destructive",
       });
     } finally {
+      logMetric("db.patients.fetch.latency_ms", performance.now() - startTime, {
+        userId: user.id,
+        recordCount,
+        status: succeeded ? "success" : "error",
+      });
       setLoading(false);
     }
   }, [user, toast]);

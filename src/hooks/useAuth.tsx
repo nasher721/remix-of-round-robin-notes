@@ -1,6 +1,7 @@
 import * as React from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { logMetric } from "@/lib/observability/logger";
 
 interface AuthContextType {
   user: User | null;
@@ -19,12 +20,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
+    const reportSessionMetric = (sessionValue: Session | null) => {
+      logMetric("auth.session.active", sessionValue ? 1 : 0, {
+        userId: sessionValue?.user?.id ?? null,
+      });
+    };
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        reportSessionMetric(session);
       }
     );
 
@@ -33,6 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      reportSessionMetric(session);
     });
 
     return () => subscription.unsubscribe();
