@@ -34,6 +34,30 @@
   }
 }
 
+@keyframes field-shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-4px);
+  }
+  40% {
+    transform: translateX(4px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(3px);
+  }
+}
+
+@layer utilities {
+  .animate-field-shake {
+    animation: field-shake 0.35s ease-in-out;
+  }
+}
+
 /* Apple-inspired Design System
    Clean, minimal, sophisticated - characteristic of apple.com
    All colors MUST be HSL.
