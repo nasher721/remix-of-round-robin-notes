@@ -10,15 +10,15 @@ interface SettingsContextType {
   // Font size
   globalFontSize: number;
   setGlobalFontSize: (size: number) => void;
-  
+
   // Todos visibility
   todosAlwaysVisible: boolean;
   setTodosAlwaysVisible: (visible: boolean) => void;
-  
+
   // Sort preferences
   sortBy: SortBy;
   setSortBy: (sort: SortBy) => void;
-  
+
   // Lab Fishbone toggle
   showLabFishbones: boolean;
   setShowLabFishbones: (show: boolean) => void;
@@ -26,32 +26,38 @@ interface SettingsContextType {
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
+export const useSettings = (): SettingsContextType => {
+  const context = useContext(SettingsContext);
+  if (context === undefined) {
+    throw new Error('useSettings must be used within a SettingsProvider');
+  }
+  return context;
+};
+
 interface SettingsProviderProps {
   children: ReactNode;
 }
 
-export const SettingsProvider = ({ children }: SettingsProviderProps) => {
+// Inner component that handles auth-dependent cloud sync.
+// Lives inside SettingsContext.Provider so:
+//   1. useSettings() is available here (no risk of circular provider issue)
+//   2. Any auth errors do NOT prevent SettingsContext.Provider from rendering,
+//      which was the root cause of the "useSettings must be used within a
+//      SettingsProvider" error when AuthProvider was unavailable.
+const SettingsSyncManager = () => {
   const { user } = useAuth();
+  const {
+    globalFontSize,
+    setGlobalFontSize,
+    todosAlwaysVisible,
+    setTodosAlwaysVisible,
+    sortBy,
+    setSortBy,
+    showLabFishbones,
+    setShowLabFishbones,
+  } = useSettings();
   const settingsCacheRef = React.useRef<UserSettingsPayload | null>(null);
   const [cloudLoaded, setCloudLoaded] = React.useState(false);
-  const [globalFontSize, setGlobalFontSizeState] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.GLOBAL_FONT_SIZE);
-    return saved ? parseInt(saved, 10) : DEFAULT_CONFIG.GLOBAL_FONT_SIZE;
-  });
-
-  const [todosAlwaysVisible, setTodosAlwaysVisibleState] = useState(() => {
-    return localStorage.getItem(STORAGE_KEYS.TODOS_ALWAYS_VISIBLE) === 'true';
-  });
-
-  const [sortBy, setSortByState] = useState<SortBy>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.PATIENT_SORT_BY);
-    return (saved as SortBy) || DEFAULT_CONFIG.DEFAULT_SORT_BY;
-  });
-
-  const [showLabFishbones, setShowLabFishbonesState] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.SHOW_LAB_FISHBONES);
-    return saved !== null ? saved === 'true' : true; // Default to true
-  });
 
   useEffect(() => {
     let isActive = true;
@@ -67,16 +73,16 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
       const cloud = settings?.appSettings;
       if (cloud) {
         if (typeof cloud.globalFontSize === 'number') {
-          setGlobalFontSizeState(cloud.globalFontSize);
+          setGlobalFontSize(cloud.globalFontSize);
         }
         if (typeof cloud.todosAlwaysVisible === 'boolean') {
-          setTodosAlwaysVisibleState(cloud.todosAlwaysVisible);
+          setTodosAlwaysVisible(cloud.todosAlwaysVisible);
         }
         if (typeof cloud.sortBy === 'string') {
-          setSortByState(cloud.sortBy as SortBy);
+          setSortBy(cloud.sortBy as SortBy);
         }
         if (typeof cloud.showLabFishbones === 'boolean') {
-          setShowLabFishbonesState(cloud.showLabFishbones);
+          setShowLabFishbones(cloud.showLabFishbones);
         }
       }
       setCloudLoaded(true);
@@ -88,27 +94,7 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
     return () => {
       isActive = false;
     };
-  }, [user]);
-
-  // Persist font size
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.GLOBAL_FONT_SIZE, String(globalFontSize));
-  }, [globalFontSize]);
-
-  // Persist todos visibility
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.TODOS_ALWAYS_VISIBLE, String(todosAlwaysVisible));
-  }, [todosAlwaysVisible]);
-
-  // Persist sort preference
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.PATIENT_SORT_BY, sortBy);
-  }, [sortBy]);
-
-  // Persist lab fishbones preference
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.SHOW_LAB_FISHBONES, String(showLabFishbones));
-  }, [showLabFishbones]);
+  }, [user, setGlobalFontSize, setTodosAlwaysVisible, setSortBy, setShowLabFishbones]);
 
   useEffect(() => {
     if (!user || !cloudLoaded) return;
@@ -130,6 +116,49 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
 
     return () => window.clearTimeout(timeout);
   }, [user, cloudLoaded, globalFontSize, todosAlwaysVisible, sortBy, showLabFishbones]);
+
+  return null;
+};
+
+export const SettingsProvider = ({ children }: SettingsProviderProps) => {
+  const [globalFontSize, setGlobalFontSizeState] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.GLOBAL_FONT_SIZE);
+    return saved ? parseInt(saved, 10) : DEFAULT_CONFIG.GLOBAL_FONT_SIZE;
+  });
+
+  const [todosAlwaysVisible, setTodosAlwaysVisibleState] = useState(() => {
+    return localStorage.getItem(STORAGE_KEYS.TODOS_ALWAYS_VISIBLE) === 'true';
+  });
+
+  const [sortBy, setSortByState] = useState<SortBy>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.PATIENT_SORT_BY);
+    return (saved as SortBy) || DEFAULT_CONFIG.DEFAULT_SORT_BY;
+  });
+
+  const [showLabFishbones, setShowLabFishbonesState] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.SHOW_LAB_FISHBONES);
+    return saved !== null ? saved === 'true' : true; // Default to true
+  });
+
+  // Persist font size
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.GLOBAL_FONT_SIZE, String(globalFontSize));
+  }, [globalFontSize]);
+
+  // Persist todos visibility
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.TODOS_ALWAYS_VISIBLE, String(todosAlwaysVisible));
+  }, [todosAlwaysVisible]);
+
+  // Persist sort preference
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.PATIENT_SORT_BY, sortBy);
+  }, [sortBy]);
+
+  // Persist lab fishbones preference
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.SHOW_LAB_FISHBONES, String(showLabFishbones));
+  }, [showLabFishbones]);
 
   const setGlobalFontSize = useCallback((size: number) => {
     setGlobalFontSizeState(size);
@@ -160,15 +189,8 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
 
   return (
     <SettingsContext.Provider value={value}>
+      <SettingsSyncManager />
       {children}
     </SettingsContext.Provider>
   );
-};
-
-export const useSettings = (): SettingsContextType => {
-  const context = useContext(SettingsContext);
-  if (context === undefined) {
-    throw new Error('useSettings must be used within a SettingsProvider');
-  }
-  return context;
 };
